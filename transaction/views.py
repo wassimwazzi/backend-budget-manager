@@ -93,7 +93,8 @@ class TransactionView(viewsets.ModelViewSet):
         queryset = self.get_queryset()
         # get total spend by category
         spend_by_category = (
-            queryset.values("category__category")
+            queryset.filter(category__income=False)
+            .values("category__category")
             .annotate(total=Sum("amount"))
             .order_by("-total")
         )
