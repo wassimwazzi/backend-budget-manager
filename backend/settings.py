@@ -25,12 +25,13 @@ SECRET_KEY = "django-insecure-@+8k9=xw_5_z*tsv^5isp2sm=1+#wr@n50%!!a(l@!0y+y=qqz
 SECRET_KEY = os.environ.get("SECRET_KEY", SECRET_KEY)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
     "budget-manager-backend-1f09feed9afe.herokuapp.com",
     "localhost",
     "0.0.0.0",
+    "127.0.0.1",
 ]
 
 
