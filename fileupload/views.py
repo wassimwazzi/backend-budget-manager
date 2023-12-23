@@ -1,9 +1,12 @@
 from rest_framework import viewsets, mixins, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 import rest_framework.serializers as serializers
+from django.conf import settings
 from .serializers import FileUploadSerializer
 from .models import FileUpload
 from .tasks import process_file
+import os
 
 
 class FileUploadView(
@@ -68,3 +71,11 @@ class FileUploadView(
         return Response(
             {"transaction_count": transaction_count}, status=status.HTTP_200_OK
         )
+
+    @action(detail=False, methods=["get"])
+    def template(self, request, *args, **kwargs):
+        file_path = "templates/template.csv"
+        file_full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        with open(file_full_path, "r", encoding="utf-8") as f:
+            file_data = f.read()
+        return Response(file_data, status=status.HTTP_200_OK)
