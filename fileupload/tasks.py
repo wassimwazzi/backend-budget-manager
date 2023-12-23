@@ -16,7 +16,7 @@ def process_file(fileupload_id):
     instance = FileUpload.objects.get(id=fileupload_id)
 
     try:
-        with open(instance.file.name, "r", encoding="utf-8") as f:
+        with open(instance.file.path, "r", encoding="utf-8") as f:
             instance.status = Status.IN_PROGRESS
             df = pd.read_csv(f)
             # validate column names

@@ -7,28 +7,35 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from category.models import Category
 
-DEFAULT_CATEGORIES = [
+INCOME_CATEGORIES = [
     ("Salary", True, "Salary"),
-    ("Reimbursment", True, "E.g. Taxes"),
-    ("Home", False, "Items for home"),
-    ("Utilities", False, "Utilities"),
-    ("Fast Food", False, "Any food to go / fast food"),
-    ("Food Delivery", False, ""),
-    ("Depanneur", False, "Convenience store"),
-    ("Restaurants", False, ""),
-    ("Groceries", False, "Groceries"),
-    ("Subscriptions", False, "Subscriptions, e.g. Netflix"),
-    ("Fees", False, "Any fees or unexpected payments"),
-    ("Transportation", False, "Transportation"),
-    ("Entertainment", False, "Entertainment"),
+    ("Reimbursement", True, "E.g. Taxes"),
+]
+
+EXPENSE_CATEGORIES = [
     ("Clothing", False, "Clothing"),
+    ("Depanneur", False, "Convenience store"),
     ("Education", False, "Education"),
+    ("Entertainment", False, "Entertainment"),
+    ("Fast Food", False, "Any food to go / fast food"),
+    ("Fees", False, "Any fees or unexpected payments"),
+    ("Food Delivery", False, ""),
     ("Gifts", False, "Gifts"),
-    ("Self Care", False, "Health, beauty, massage, etc."),
-    ("Travel", False, "Travel"),
+    ("Groceries", False, "Groceries"),
+    ("Health Care", False, "Health, beauty, massage, etc."),
+    ("Home", False, "Items for home"),
     ("Investments", False, "Investments"),
     ("Other", False, "No specific category"),
+    ("Restaurants", False, ""),
+    ("Self Care", False, "Health, beauty, massage, etc."),
+    ("Sports", False, "Sports"),
+    ("Subscriptions", False, "Subscriptions, e.g. Netflix"),
+    ("Transportation", False, "Transportation"),
+    ("Travel", False, "Travel"),
+    ("Utilities", False, "Utilities"),
 ]
+
+DEFAULT_CATEGORIES = INCOME_CATEGORIES + EXPENSE_CATEGORIES
 
 
 @receiver(post_save, sender=User)
