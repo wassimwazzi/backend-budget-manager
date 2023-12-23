@@ -1,0 +1,11 @@
+factory_boy
+djangorestframework
+django-cors-headers
+django_extensions
+pandas
+rapidfuzz
+thefuzz
+transformers
+torch
+celery
+redis
