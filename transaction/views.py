@@ -2,6 +2,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 import rest_framework.serializers as serializers
+from django.db.models import Sum
 from .serializers import TransactionSerializer
 from .models import Transaction
 from category.models import Category
@@ -86,3 +87,34 @@ class TransactionView(viewsets.ModelViewSet):
         if result:
             return Response({"message": "Inference completed"}, status=200)
         return Response({"message": "Inference failed"}, status=500)
+
+    @action(detail=False, methods=["get"])
+    def spend_by_category(self, request):
+        queryset = self.get_queryset()
+        # get total spend by category
+        spend_by_category = (
+            queryset.values("category__category")
+            .annotate(total=Sum("amount"))
+            .order_by("-total")
+        )
+        return Response(spend_by_category, status=200)
+    
+    @action(detail=False, methods=["get"])
+    def spend_vs_income_by_month(self, request):
+        # For each month, get total spend and total income
+        queryset = self.get_queryset()
+        current_year = timezone.now().year
+        year = self.request.query_params.get("year", current_year)
+        spend_by_month = (
+            queryset.filter(category__income=False, date__year=year)
+            .values("date__month")
+            .annotate(total=Sum("amount"))
+            .order_by("-date__month")
+        )
+        income_by_month = (
+            queryset.filter(category__income=True, date__year=year)
+            .values("date__month")
+            .annotate(total=Sum("amount"))
+            .order_by("-date__month")
+        )
+        return Response({"spend": spend_by_month, "income": income_by_month}, status=200)
