@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework import routers
 from rest_framework.authtoken.views import obtain_auth_token
 import category.views
@@ -36,4 +38,4 @@ urlpatterns = [
     path("login/", include("django.contrib.auth.urls")),
     path("api/", include(router.urls)),
     path("api/token/", obtain_auth_token, name="token_obtain_pair"),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

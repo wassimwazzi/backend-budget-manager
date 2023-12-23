@@ -1,3 +1,4 @@
+django
 factory_boy
 djangorestframework
 django-cors-headers
@@ -9,3 +10,6 @@ transformers
 torch
 celery
 redis
+gunicorn
+whitenoise
+dj_database_url
