@@ -99,23 +99,41 @@ class TransactionView(viewsets.ModelViewSet):
             .order_by("-total")
         )
         return Response(spend_by_category, status=200)
-    
+
     @action(detail=False, methods=["get"])
     def spend_vs_income_by_month(self, request):
         # For each month, get total spend and total income
         queryset = self.get_queryset()
-        current_year = timezone.now().year
-        year = self.request.query_params.get("year", current_year)
         spend_by_month = (
-            queryset.filter(category__income=False, date__year=year)
-            .values("date__month")
+            queryset.filter(category__income=False)
+            .values("date__year", "date__month")
             .annotate(total=Sum("amount"))
-            .order_by("-date__month")
+            .order_by("-date__year", "-date__month")
         )
+
         income_by_month = (
-            queryset.filter(category__income=True, date__year=year)
-            .values("date__month")
+            queryset.filter(category__income=True)
+            .values("date__year", "date__month")
             .annotate(total=Sum("amount"))
-            .order_by("-date__month")
+            .order_by("-date__year", "-date__month")
         )
-        return Response({"spend": spend_by_month, "income": income_by_month}, status=200)
+
+        # Combine spend and income by month
+        response_data = [
+            {
+                "month": f"{month['date__year']}-{month['date__month']:02d}",
+                "spend": month["total"] if month["total"] is not None else 0,
+                "income": next(
+                    (
+                        income["total"]
+                        for income in income_by_month
+                        if income["date__year"] == month["date__year"]
+                        and income["date__month"] == month["date__month"]
+                    ),
+                    0,
+                ),
+            }
+            for month in spend_by_month
+        ]
+
+        return Response(response_data, status=200)
