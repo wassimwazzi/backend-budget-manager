@@ -59,3 +59,12 @@ class FileUploadView(
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
+    def destroy(self, request, *args, **kwargs):
+        # Return the number of deleted transactions
+        instance = self.get_object()
+        transaction_count = instance.transaction_set.count()
+        self.perform_destroy(instance)
+        return Response(
+            {"transaction_count": transaction_count}, status=status.HTTP_200_OK
+        )

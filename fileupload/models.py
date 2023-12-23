@@ -20,7 +20,10 @@ class Status(models.TextChoices):
 def upload_to(instance, filename):
     user = instance.user
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    filename, extension = filename.split(".")
+    try:
+        filename, extension = filename.split(".")
+    except ValueError as e:
+        raise ValueError(f"Invalid filename: {filename}") from e
     return f"uploads/user-{user.id}/{filename}-{now}.{extension}"
 
 
@@ -37,3 +40,18 @@ class FileUpload(models.Model):
     )
     message = models.CharField(max_length=255, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        """
+        Validate extension before saving.
+        """
+        if self.file.name and not self.file.name.endswith(".csv"):
+            raise Exception("Invalid file extension.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """
+        Delete file from disk when deleting the object.
+        """
+        self.file.delete()
+        super().delete(*args, **kwargs)
