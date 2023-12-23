@@ -5,7 +5,7 @@ from budget.models import Budget
 from budget.tests.factories import BudgetFactory
 from category.tests.factories import CategoryFactory
 from transaction.tests.factories import TransactionFactory
-from user_factory import UserFactory
+from users.user_factory import UserFactory
 
 
 class BudgetTestCase(TestCase):

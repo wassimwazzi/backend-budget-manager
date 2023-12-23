@@ -25,6 +25,7 @@ import currency.views
 import transaction.views
 import budget.views
 import fileupload.views
+from users.views import SignUpView
 
 router = routers.DefaultRouter()
 router.register(r"categories", category.views.CategoryView, "categories")
@@ -36,6 +37,7 @@ router.register(r"uploads", fileupload.views.FileUploadView, "uploads")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", include("django.contrib.auth.urls")),
+    path("signup/", SignUpView.as_view(), name="signup"),
     path("api/", include(router.urls)),
     path("api/token/", obtain_auth_token, name="token_obtain_pair"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

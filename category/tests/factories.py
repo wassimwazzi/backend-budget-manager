@@ -1,5 +1,5 @@
 import factory
-from user_factory import UserFactory
+from users.user_factory import UserFactory
 from ..models import Category
 
 

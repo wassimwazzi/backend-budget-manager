@@ -1,5 +1,5 @@
 import factory
-from user_factory import UserFactory
+from users.user_factory import UserFactory
 from category.tests.factories import CategoryFactory
 from currency.tests.factories import CurrencyFactory
 from ..models import Transaction
