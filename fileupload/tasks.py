@@ -132,7 +132,7 @@ def create_transactions(df, instance, categories):
                     category=category,
                     code=row["code"],
                     file=instance,
-                    inferred_category=False,
+                    inferred_category=True,
                     user=instance.user,
                 )
     except django.core.exceptions.ValidationError as e:
