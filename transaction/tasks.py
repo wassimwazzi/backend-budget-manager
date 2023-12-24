@@ -13,16 +13,16 @@ def infer_categories_task(user_id, webhook_url=None):
     user = User.objects.get(id=user_id)
     transactions = Transaction.objects.filter(user=user, inferred_category=True)
     income_df = pd.DataFrame(
-        transactions.filter(category__income=True).values_list(
-            "id", "description", "code", "category__category"
-        ),
+        transactions.filter(
+            category__income=True, category__is_default=True
+        ).values_list("id", "description", "code"),
         columns=["id", "description", "code", "category"],
     )
     income_df["category"] = ""  # set empty so it gets inferred
     expense_df = pd.DataFrame(
-        transactions.filter(category__income=False).values_list(
-            "id", "description", "code", "category__category"
-        ),
+        transactions.filter(
+            category__income=False, category__is_default=True
+        ).values_list("id", "description", "code"),
         columns=["id", "description", "code", "category"],
     )
     expense_df["category"] = ""
