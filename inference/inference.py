@@ -1,6 +1,6 @@
 import logging
 from thefuzz import fuzz
-from text_classifier import SimpleClassifier, fuzzy_search
+from .text_classifier import SimpleClassifier, fuzzy_search
 from category.models import Category
 from transaction.models import Transaction
 from django.db import transaction as db_transaction
@@ -11,13 +11,16 @@ text_classifier = SimpleClassifier()
 
 def _infer(transactions_to_infer, categories, default_category):
     # infers for either income or expense.
+    prev_transactions = Transaction.objects.filter(
+        user=default_category.user, category__income=default_category.income
+    )
     category_names = [c.category for c in categories]
     user = default_category.user
-    prev_inferred_transactions = Transaction.objects.filter(
-        inferred_category=True, user=user
+    prev_inferred_transactions = prev_transactions.filter(
+        inferred_category=True, user=user, category__in=categories
     ).exclude(category=default_category)
-    prev_non_inferred_transactions = Transaction.objects.filter(
-        inferred_category=False, user=user
+    prev_non_inferred_transactions = prev_transactions.filter(
+        inferred_category=False, user=user, category__in=categories
     )
     prev_inferred_codes = {
         t.code: t.category for t in prev_inferred_transactions if t.code

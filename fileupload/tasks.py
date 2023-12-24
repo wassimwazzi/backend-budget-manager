@@ -6,7 +6,7 @@ from django.db import transaction as db_transaction
 import django.core.exceptions
 from datetime import datetime
 import pandas as pd
-from inference import infer_categories
+from inference.inference import infer_categories
 import math
 
 
