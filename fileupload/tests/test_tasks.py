@@ -37,6 +37,28 @@ class SanitizeDfTest(TestCase):
         self.assertEqual(df["income"].sum(), 10)
         self.assertEqual(df["expense"].sum(), 40)
 
+    def test_insensitive_on_column_names(self):
+        self.df.columns = [
+            "DATE",
+            "DESCRIPTION",
+            "CODE",
+            "INCOME",
+            "EXPENSE",
+            "CATEGORY",
+        ]
+        error_msg, df = sanitize_df(self.df, self.categories)
+        self.assertEqual(error_msg, "")
+        self.assertEqual(df["income"].sum(), 10)
+        self.assertEqual(df["expense"].sum(), 40)
+
+    def test_missing_column(self):
+        del self.df["date"]
+        del self.df["income"]
+        error_msg, df = sanitize_df(self.df, self.categories)
+        self.assertIn("Missing", error_msg)
+        self.assertIn("date", error_msg)
+        self.assertIn("income", error_msg)
+
     def test_sanitize_df_invalid_category(self):
         self.df["category"] = ["invalid", "invalid", "invalid"]
         error_msg, df = sanitize_df(self.df, self.categories)

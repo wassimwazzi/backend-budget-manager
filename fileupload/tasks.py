@@ -18,6 +18,7 @@ def sanitize_df(df, categories):
     missing_cols = [col for col in expected_columns if col not in df.columns]
     if missing_cols:
         error_msg += f"Missing columns: {', '.join(missing_cols)}\n"
+        return error_msg, df
     convert_amount = (
         lambda x: (float(x.replace(",", "")) if x else x) if isinstance(x, str) else x
     )
@@ -55,7 +56,7 @@ def sanitize_df(df, categories):
         error_msg += f"Income or expense is negative or 0 in rows {row_numbers}\n"
     try:
         df["date"] = pd.to_datetime(df["date"], format="mixed", dayfirst=False).dt.date
-    except Exception as e:
+    except ValueError as e:
         print(e)
         error_msg += "Invalid date format: must be YYYY-MM-DD\n"
         return error_msg, df
@@ -179,4 +180,3 @@ def process_file(fileupload_id):
         instance.message = "Error processing file"
         instance.save()
         return False
-
