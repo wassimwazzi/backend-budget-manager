@@ -124,17 +124,16 @@ def process_file(fileupload_id):
 
             # infer categories
             income_df = infer_categories(
-                income_df, income_categories, default_income_category
+                income_df, income_categories, default_income_category, instance.user
             )
             expense_df = infer_categories(
-                expense_df, expense_categories, default_expense_category
+                expense_df, expense_categories, default_expense_category, instance.user
             )
             # combine dataframes
             df = pd.concat([income_df, expense_df])
 
             with db_transaction.atomic():
                 for index, row in df.iterrows():
-                    print(row["category"])
                     category = categories.get(category=row["category"])
                     amount = row["income"] if row["income"] else row["expense"]
                     Transaction.objects.create(

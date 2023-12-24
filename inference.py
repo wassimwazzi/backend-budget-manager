@@ -2,21 +2,25 @@ import logging
 from thefuzz import fuzz
 from text_classifier import SimpleClassifier, fuzzy_search
 from transaction.models import Transaction
+from category.models import Category
+
 
 text_classifier = SimpleClassifier()
 
 
-def infer_categories(df, categories, default_category):
+def infer_categories(df, categories, default_category, user):
     """
     Auto fill the category column when missing.
     If the category is already in the db, use that
     If the code is the same as a previous transaction (fuzzy search), use that category
     Otherwise, use NLP to infer category
     """
-    prev_inferred_transactions = Transaction.objects.filter(
+    is_income = Category.objects.get(category=default_category).income  # TODO: FIXME
+    transactions = Transaction.objects.filter(category__income=is_income, user=user)
+    prev_inferred_transactions = transactions.filter(
         inferred_category=True,
     ).exclude(category__category=default_category)
-    prev_non_inferred_transactions = Transaction.objects.filter(inferred_category=False)
+    prev_non_inferred_transactions = transactions.filter(inferred_category=False)
     new_categories = []
     inferred_categories = []
     prev_inferred_codes = {
@@ -45,8 +49,8 @@ def infer_categories(df, categories, default_category):
             new_categories.append(row["category"])
             inferred_categories.append(False)
             continue
-        code = row["category"]
-        description = row["category"]
+        code = row["code"]
+        description = row["description"]
         if not code and not description:
             logging.debug("Using default category as no description or code. %s", row)
             new_categories.append(default_category)
