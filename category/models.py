@@ -2,6 +2,7 @@
 Category Model
 """
 from django.db import models
+from django.db.utils import IntegrityError
 from django.contrib.auth.models import User
 
 
@@ -28,7 +29,7 @@ class Category(models.Model):
             if Category.objects.filter(
                 user=self.user, is_default=True, income=self.income
             ).exists():
-                raise Exception("Cannot have multiple default categories")
+                raise IntegrityError("Cannot have multiple default categories")
         super(Category, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -36,7 +37,7 @@ class Category(models.Model):
         Delete category
         """
         if self.is_default:
-            raise Exception("Cannot delete default category")
+            raise IntegrityError("Cannot delete default category")
         super(Category, self).delete(*args, **kwargs)
 
     class Meta:
