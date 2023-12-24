@@ -7,9 +7,11 @@ from .serializers import FileUploadSerializer
 from .models import FileUpload
 from .tasks import process_file
 import os
+from queryset_mixin import QuerysetMixin
 
 
 class FileUploadView(
+    QuerysetMixin,
     mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
     mixins.ListModelMixin,
@@ -23,30 +25,8 @@ class FileUploadView(
         for the currently authenticated user.
         """
         user = self.request.user
-        filter_field = self.request.query_params.get("filter", None)
-        filter_value = self.request.query_params.get("filter_value", None)
-        if filter_field and filter_value:
-            # validate filter is a valid field
-            if filter_field not in [f.name for f in FileUpload._meta.get_fields()]:
-                raise serializers.ValidationError("Invalid filter")
-            queryset = FileUpload.objects.filter(
-                user=user, **{f"{filter_field}__icontains": filter_value}
-            )
-        else:
-            queryset = FileUpload.objects.filter(user=user)
-        sort_field = self.request.query_params.get("sort", None)
-        sort_order = self.request.query_params.get("order", None)
-        if sort_field and sort_order:
-            if sort_field not in [f.name for f in FileUpload._meta.get_fields()]:
-                raise serializers.ValidationError("Invalid sort field")
-            if sort_order not in ["asc", "desc"]:
-                raise serializers.ValidationError(
-                    "Invalid sort order, must be asc or desc"
-                )
-            queryset = queryset.order_by(
-                f"{'' if sort_order == 'asc' else '-'}{sort_field}"
-            )
-        return queryset
+        queryset = FileUpload.objects.filter(user=user)
+        return self.get_filtered_queryet(queryset)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

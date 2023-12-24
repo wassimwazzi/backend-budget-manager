@@ -8,9 +8,10 @@ from .models import Transaction
 from category.models import Category
 from django.utils import timezone
 from .tasks import infer_categories_task
+from queryset_mixin import QuerysetMixin
 
 
-class TransactionView(viewsets.ModelViewSet):
+class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
 
     def get_queryset(self):
@@ -19,34 +20,8 @@ class TransactionView(viewsets.ModelViewSet):
         for the currently authenticated user.
         """
         user = self.request.user
-        filter_field = self.request.query_params.get("filter", None)
-        filter_value = self.request.query_params.get("filter_value", None)
-        if filter_field and filter_value:
-            # validate filter is a valid field
-            if filter_field not in [f.name for f in Transaction._meta.get_fields()]:
-                raise serializers.ValidationError("Invalid filter")
-            if filter_field == "category":
-                filter_field = "category__category"
-            queryset = Transaction.objects.filter(
-                user=user, **{f"{filter_field}__icontains": filter_value}
-            )
-        else:
-            queryset = Transaction.objects.filter(user=user)
-        sort_field = self.request.query_params.get("sort", None)
-        sort_order = self.request.query_params.get("order", None)
-        if sort_field and sort_order:
-            if sort_field not in [f.name for f in Transaction._meta.get_fields()]:
-                raise serializers.ValidationError("Invalid sort field")
-            if sort_field == "category":
-                sort_field = "category__category"
-            if sort_order not in ["asc", "desc"]:
-                raise serializers.ValidationError(
-                    "Invalid sort order, must be asc or desc"
-                )
-            queryset = queryset.order_by(
-                f"{'' if sort_order == 'asc' else '-'}{sort_field}"
-            )
-        return queryset
+        queryset = Transaction.objects.filter(user=user)
+        return self.get_filtered_queryet(queryset)
 
     def validate_date(self):
         date = self.request.data.get("date")

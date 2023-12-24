@@ -3,9 +3,10 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from .serializers import CategorySerializer
 from .models import Category
+from queryset_mixin import QuerysetMixin
 
 
-class CategoryView(viewsets.ModelViewSet):
+class CategoryView(QuerysetMixin, viewsets.ModelViewSet):
     serializer_class = CategorySerializer
 
     def get_queryset(self):
@@ -15,20 +16,7 @@ class CategoryView(viewsets.ModelViewSet):
         """
         user = self.request.user
         queryset = Category.objects.filter(user=user)
-
-        sort_field = self.request.query_params.get("sort", None)
-        sort_order = self.request.query_params.get("order", None)
-        if sort_field and sort_order:
-            if sort_field not in [f.name for f in Category._meta.get_fields()]:
-                raise serializers.ValidationError("Invalid sort field")
-            if sort_order not in ["asc", "desc"]:
-                raise serializers.ValidationError(
-                    "Invalid sort order, must be asc or desc"
-                )
-            queryset = queryset.order_by(
-                f"{'' if sort_order == 'asc' else '-'}{sort_field}"
-            )
-        return queryset
+        return self.get_filtered_queryet(queryset)
 
     def list(self, request):
         queryset = self.get_queryset()
