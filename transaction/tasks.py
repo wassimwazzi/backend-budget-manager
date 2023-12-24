@@ -11,27 +11,41 @@ import pandas as pd
 @shared_task
 def infer_categories_task(user_id, webhook_url=None):
     user = User.objects.get(id=user_id)
-    print("Infering categories for user", user)
-    transactions = Transaction.objects.filter(
-        user=user, inferred_category=True
-    ).exclude(category__category="Other")
+    transactions = Transaction.objects.filter(user=user, inferred_category=True)
     transactions_df = pd.DataFrame(
         transactions.values_list("id", "description", "code", "category__category"),
-        columns=["id", "Description", "Code", "Category"],
+        columns=["id", "description", "code", "category"],
     )
 
-    categories = (
-        Category.objects.filter(user=user)
-        .values_list("category", flat=True)
-        .exclude(category="Other")
+    income_categories = Category.objects.filter(user=user, income=True).values_list(
+        "category", flat=True
     )
-    # infer_categories modifies the dataframe in place
-    transactions_df = inference.infer_categories(transactions_df, categories)
+    expense_categories = Category.objects.filter(user=user, income=False).values_list(
+        "category", flat=True
+    )
+    default_income_category = Category.objects.get(
+        user=user, income=True, is_default=True
+    ).category
+    default_expense_category = Category.objects.get(
+        user=user, income=False, is_default=True
+    ).category
+    income_df = transactions_df[transactions_df["income"] > 0]
+    expense_df = transactions_df[transactions_df["expense"] > 0]
+
+    # infer categories
+    income_df = inference.infer_categories(
+        income_df, income_categories, default_income_category
+    )
+    expense_df = inference.infer_categories(
+        expense_df, expense_categories, default_expense_category
+    )
+    # combine dataframes
+    transactions_df = pd.concat([income_df, expense_df])
 
     with db_transaction.atomic():
         for index, row in transactions_df.iterrows():
             transaction = Transaction.objects.get(id=row["id"])
-            transaction.category = Category.objects.get(category=row["Category"])
+            transaction.category = Category.objects.get(category=row["category"])
             transaction.save()
 
         if webhook_url:

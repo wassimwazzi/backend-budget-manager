@@ -1,13 +1,12 @@
 import logging
 from thefuzz import fuzz
 from text_classifier import SimpleClassifier, fuzzy_search
-from category.models import Category
 from transaction.models import Transaction
 
 text_classifier = SimpleClassifier()
 
 
-def infer_categories(df, categories):
+def infer_categories(df, categories, default_category):
     """
     Auto fill the category column when missing.
     If the category is already in the db, use that
@@ -16,7 +15,7 @@ def infer_categories(df, categories):
     """
     prev_inferred_transactions = Transaction.objects.filter(
         inferred_category=True,
-    ).exclude(category__category="Other")
+    ).exclude(category__category=default_category)
     prev_non_inferred_transactions = Transaction.objects.filter(inferred_category=False)
     new_categories = []
     inferred_categories = []
@@ -38,21 +37,19 @@ def infer_categories(df, categories):
     }
     for _, row in df.iterrows():
         logging.debug("Infering category for\n %s", row)
-        if row["Category"] in categories:
+        if row["category"] in categories:
             logging.debug(
                 "Using existing category %s for row",
-                row["Category"],
+                row["category"],
             )
-            new_categories.append(row["Category"])
+            new_categories.append(row["category"])
             inferred_categories.append(False)
             continue
-        code = row["Code"]
-        description = row["Description"]
+        code = row["category"]
+        description = row["category"]
         if not code and not description:
-            logging.debug(
-                "Using default category Other as no description or code. %s", row
-            )
-            new_categories.append("Other")
+            logging.debug("Using default category as no description or code. %s", row)
+            new_categories.append(default_category)
             inferred_categories.append(True)
             continue
 
@@ -145,7 +142,9 @@ def infer_categories(df, categories):
             # Only use NLP on description as we will rarely get a match on code
             result = text_classifier.predict(description, categories)
             if result:
-                logging.debug("Inferred category using NLP for %s: %s", description, result)
+                logging.debug(
+                    "Inferred category using NLP for %s: %s", description, result
+                )
                 new_categories.append(result)
                 inferred_categories.append(True)
                 # add to previous transactions
@@ -154,11 +153,11 @@ def infer_categories(df, categories):
                     prev_inferred_codes[code] = result
                 continue
         logging.debug(
-            "Using default category Other as no description was given and couldn't match code. %s",
+            "Using default category as no description was given and couldn't match code. %s",
             row,
         )
-        new_categories.append("Other")
+        new_categories.append(default_category)
         inferred_categories.append(True)
-    df["Inferred_Category"] = inferred_categories
-    df["Category"] = new_categories
+    df["inferred_category"] = inferred_categories
+    df["category"] = new_categories
     return df
