@@ -28,7 +28,7 @@ class QuerysetMixin:
                 filter_field = "category__category"
             filters[f"{filter_field}__icontains"] = filter_value
 
-        queryset = model_class.objects.filter(**filters)
+        queryset = queryset.filter(**filters)
 
         # Sort by a single field
         sort_field = self.request.query_params.get("sort", None)
