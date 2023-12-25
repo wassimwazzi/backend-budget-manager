@@ -48,7 +48,7 @@ class FileUpload(models.Model):
         """
         if self.file.name and not self.file.name.endswith(".csv"):
             raise Exception("Invalid file extension.")
-        if len(self.message) > 500:
+        if self.message and len(self.message) > 500:
             self.message = self.message[:497] + "..."
         super().save(*args, **kwargs)
 
