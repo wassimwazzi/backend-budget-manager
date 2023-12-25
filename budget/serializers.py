@@ -10,6 +10,7 @@ class BudgetSerializer(serializers.ModelSerializer):
 
     category = CategorySerializer(read_only=True)
     start_date = serializers.DateField(input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m")
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
 
 
     class Meta:
