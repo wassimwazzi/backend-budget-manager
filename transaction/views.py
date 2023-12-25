@@ -66,6 +66,24 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def spend_by_category(self, request):
         queryset = self.get_queryset()
+        monthly = request.query_params.get("monthly", False)
+        if monthly:
+            # get total spend by category by month
+            spend_by_category = (
+                queryset.filter(category__income=False)
+                .values("category__category", "date__year", "date__month")
+                .annotate(total=Sum("amount"))
+                .order_by("-date__year", "-date__month")
+            )
+            response_data = [
+                {
+                    "category": category["category__category"],
+                    "month": f"{category['date__year']}-{category['date__month']:02d}",
+                    "total": category["total"],
+                }
+                for category in spend_by_category
+            ]
+            return Response(response_data, status=200)
         # get total spend by category
         spend_by_category = (
             queryset.filter(category__income=False)
