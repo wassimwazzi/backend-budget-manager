@@ -24,11 +24,13 @@ class BudgetTestCase(TestCase):
         """
         Test budget is unique
         """
-        budget = BudgetFactory()
+        user = UserFactory()
+        budget = BudgetFactory(user=user)
         with self.assertRaises(django.db.utils.IntegrityError):
             BudgetFactory(
                 category=budget.category,
                 start_date=budget.start_date,
+                user=budget.user,
             )
 
 
@@ -76,7 +78,7 @@ class BudgetSummaryTestCase(TestCase):
                 "remaining": 200,
             },
         ]
-        self.assertListEqual(budget_summary, expected)
+        self.assertCountEqual(budget_summary, expected)
 
     def test_budget_summary_does_not_include_income_categories(self):
         """

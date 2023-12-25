@@ -3,6 +3,7 @@ Budget models
 """
 from category.models import Category
 from currency.models import Currency
+from transaction.models import Transaction
 from django.db import models
 from django.db import connection
 from django.contrib.auth.models import User
@@ -45,59 +46,98 @@ class Budget(models.Model):
     @staticmethod
     def get_budget_by_category(month, user):
         """
-        Get the budget for each category for the given month.
+        Like get_budget_by_category but using Django ORM.
         """
         start_date = month.replace(day=1)
-        end_date = (
-            month.replace(day=1) + relativedelta(months=1) - relativedelta(days=1)
-        )
-        user_id = user.id
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                WITH BUDGETSINCEDATE AS (
-                    SELECT c.id AS category_id, c.CATEGORY, COALESCE(b.amount, 0) AS AMOUNT
-                    FROM category_category c
-                    LEFT OUTER JOIN budget_budget b ON b.category_id = c.id
-                    WHERE c.INCOME = 0 AND (
-                        b.start_date IS NULL
-                        OR b.start_date = (
-                            SELECT MAX(b2.start_date)
-                            FROM budget_budget b2
-                            WHERE b2.start_date <= %s
-                            AND b2.category_id = c.id
-                        )
-                    ) AND c.user_id = %s
-                ),
-
-                TRANSACTIONSBUDGET AS (
-                    SELECT b.CATEGORY AS Category, b.AMOUNT AS Budget,
-                        COALESCE(SUM(t.amount),0) AS Actual, b.AMOUNT - COALESCE(SUM(t.amount),0) AS Remaining
-                    FROM BUDGETSINCEDATE b
-                    LEFT OUTER JOIN transaction_transaction t ON (
-                        t.category_id = b.category_id AND
-                        t.date >= %s AND
-                        t.date <= %s
+        end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
+        # For each category, get the most recent budget before the start date
+        # If no budget exists for the month and category, but a transaction exists, set budget to 0
+        budgets = (
+            Budget.objects.filter(
+                start_date__lte=start_date,
+                category__income=False,
+                user=user,
+                start_date=models.Subquery(
+                    Budget.objects.filter(
+                        category=models.OuterRef("category"), start_date__lte=start_date
                     )
-                    GROUP BY b.CATEGORY
-                    ORDER BY Remaining ASC
-                )
-
-                SELECT Category, Budget, ROUND(Actual, 2) AS Actual, ROUND(Remaining, 2) AS Remaining
-                FROM TRANSACTIONSBUDGET
-                WHERE Actual > 0 OR budget > 0
-                ;
-            """,
-                [start_date, user_id, start_date, end_date],
+                    .values("category__category")
+                    .annotate(max_start_date=models.Max("start_date"))
+                    .values("max_start_date")[:1]
+                ),
             )
-            budget_summary_query = cursor.fetchall()
-            budget_summary = [
+            .annotate(budget=models.F("amount"))
+            .values("category__category", "budget", "start_date")
+        )
+        # For each category, get the sum of transactions for the month
+        # If no transaction exists for the month and category, but a budget exists, set actual to 0
+        transactions = (
+            Transaction.objects.filter(
+                category__income=False,
+                date__gte=start_date,
+                date__lte=end_date,
+                user=user,
+            )
+            .values(
+                "category__category",
+            )
+            .annotate(
+                actual=models.Sum("amount"),
+            )
+            .values(
+                "category__category",
+                "actual",
+            )
+        )
+        # Combine budgets and transactions
+        # get set of categories
+        categories = set(budget["category__category"] for budget in budgets).union(
+            set(transaction["category__category"] for transaction in transactions)
+        )
+        budget_summary = []
+        for category in categories:
+            budget = next(
+                (
+                    budget
+                    for budget in budgets
+                    if budget["category__category"] == category
+                ),
+                {"budget": 0},
+            )
+            transaction = next(
+                (
+                    transaction
+                    for transaction in transactions
+                    if transaction["category__category"] == category
+                ),
+                {"actual": 0},
+            )
+            budget_summary.append(
                 {
-                    "category": budget[0],
-                    "budget": budget[1],
-                    "actual": budget[2],
-                    "remaining": budget[3],
+                    "category": category,
+                    "budget": budget["budget"],
+                    "actual": transaction["actual"],
+                    "remaining": budget["budget"] - transaction["actual"],
                 }
-                for budget in budget_summary_query
-            ]
+            )
+        # for budget in budgets:
+        #     budget_summary.append(
+        #         {
+        #             "category": budget["category__category"],
+        #             "budget": budget["budget"],
+        #             "actual": 0,
+        #             "remaining": budget["budget"],
+        #         }
+        #     )
+        # for transaction in transactions:
+        #     for budget in budget_summary:
+        #         if budget["category"] == transaction["category__category"]:
+        #             budget["actual"] = transaction["actual"]
+        #             budget["remaining"] = budget["budget"] - transaction["actual"]
+        # # # Remove budgets with no transactions and no budget
+        # budget_summary = [
+        #     budget
+        #     for budget in budget_summary
+        #     if budget["actual"] > 0 or budget["budget"] > 0
+        # ]
         return budget_summary
