@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
-import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,18 +21,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = "django-insecure-@+8k9=xw_5_z*tsv^5isp2sm=1+#wr@n50%!!a(l@!0y+y=qqz"
+SECRET_KEY = "django-insecure-@+8k9=xw_5_z*tsv^5isp2sm=1+#wr@n50%!!a(l@!0y+y=qqz"
+SECRET_KEY = os.environ.get("SECRET_KEY", SECRET_KEY)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get("DEBUG", "True") == "True"
+
 ALLOWED_HOSTS = [
     "budget-manager-backend-1f09feed9afe.herokuapp.com",
-    "127.0.0.1",
-    "0.0.0.0",
     "localhost",
+    "0.0.0.0",
+    "127.0.0.1",
 ]
-
-SECRET_KEY = os.environ.get("SECRET_KEY")
 
 
 # Application definition
@@ -64,6 +63,7 @@ MY_APPS = [
 INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + MY_APPS
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -72,6 +72,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+]
+
+CORS_ALLOWED_ORIGINS = [
+    os.environ.get("CORS_ALLOWED_ORIGIN", "http://localhost:3000"),
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -114,7 +118,7 @@ WSGI_APPLICATION = "backend.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": os.environ.get("DATABASE_URL", BASE_DIR / "db.sqlite3"),
     }
 }
 # db_from_env = dj_database_url.config(conn_max_age=600)
@@ -158,7 +162,6 @@ USE_TZ = True
 
 # STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATIC_URL = "static/"
-
 # STATICFILES_DIRS = (os.path.join(BASE_DIR, "static"),)
 
 # MEDIA_URL = "/media/"

@@ -38,6 +38,8 @@ class Budget(models.Model):
         Set date to first day of month.
         """
         self.start_date = self.start_date.replace(day=1)
+        if self.amount < 0:
+            raise ValueError("Budget amount must be positive.")
         super().save(*args, **kwargs)
 
     @staticmethod

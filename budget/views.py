@@ -6,9 +6,10 @@ from .models import Budget
 from category.models import Category
 import datetime
 import rest_framework.serializers as serializers
+from queryset_mixin import QuerysetMixin
 
 
-class BudgetView(viewsets.ModelViewSet):
+class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
 
     def get_queryset(self):
@@ -18,21 +19,7 @@ class BudgetView(viewsets.ModelViewSet):
         """
         user = self.request.user
         queryset = Budget.objects.filter(user=user)
-        sort_field = self.request.query_params.get("sort", None)
-        sort_order = self.request.query_params.get("order", None)
-        if sort_field and sort_order:
-            if sort_field not in [f.name for f in Budget._meta.get_fields()]:
-                raise serializers.ValidationError("Invalid sort field")
-            if sort_field == "category":
-                sort_field = "category__category"
-            if sort_order not in ["asc", "desc"]:
-                raise serializers.ValidationError(
-                    "Invalid sort order, must be asc or desc"
-                )
-            queryset = queryset.order_by(
-                f"{'' if sort_order == 'asc' else '-'}{sort_field}"
-            )
-        return queryset
+        return self.get_filtered_queryet(queryset)
 
     def perform_create(self, serializer):
         category_id = self.request.data.get("category")

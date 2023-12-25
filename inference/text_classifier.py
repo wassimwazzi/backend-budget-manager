@@ -75,7 +75,7 @@ def fuzzy_search(text, labels, threshold=85, scorer=fuzz.token_set_ratio):
     logging.info("Fuzzy Predicting label for %s", text)
     logging.debug("Fuzzy Labels: %s", labels)
     best_label, best_score = process.extractOne(text, labels, scorer=scorer)
-    logging.debug("Fuzzy Best label: %s. score %s", best_label, best_score)
+    logging.info("Fuzzy Best label: %s. score %s", best_label, best_score)
     if best_score < threshold:
         logging.warning("Fuzzy score is below threshold: %s", best_score)
         return None

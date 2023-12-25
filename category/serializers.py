@@ -9,5 +9,5 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ("id", "category", "income", "description", "user")
-        read_only_fields = ("id", "user")
+        fields = ("id", "category", "income", "description", "user", "is_default")
+        read_only_fields = ("id", "user", "is_default")

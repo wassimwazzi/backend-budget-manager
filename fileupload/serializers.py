@@ -24,3 +24,11 @@ class FileUploadSerializer(serializers.ModelSerializer):
         model = FileUpload
         fields = ("id", "file", "date", "status", "message", "user")
         read_only_fields = ("id", "user", "status", "message", "date")
+
+    def validate_file(self, value):
+        """
+        Validate file
+        """
+        if value.name and not value.name.endswith(".csv"):
+            raise serializers.ValidationError("Invalid file extension.")
+        return value
