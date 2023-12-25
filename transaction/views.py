@@ -57,8 +57,10 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def infer(self, request):
         # webhook_url = request.data.get("webhook_url") or "webhook_url"
-        task = infer_categories_task.delay(request.user.id)
-        result = task.get()
+        # FIXME: Uncomment to add celery task back
+        # task = infer_categories_task.delay(request.user.id)
+        # result = task.get()
+        result = infer_categories_task(request.user.id)
         if result:
             return Response({"message": "Inference completed"}, status=200)
         return Response({"message": "Inference failed"}, status=500)

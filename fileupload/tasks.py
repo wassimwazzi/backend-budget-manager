@@ -139,7 +139,8 @@ def create_transactions(df, instance, categories):
         return str(e)
 
 
-@shared_task
+# FIXME: Uncomment to add celery task back
+# @shared_task
 def process_file(fileupload_id):
     """
     Process file after upload
