@@ -9,6 +9,8 @@ class BudgetSerializer(serializers.ModelSerializer):
     """
 
     category = CategorySerializer(read_only=True)
+    start_date = serializers.DateField(input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m")
+
 
     class Meta:
         model = Budget
