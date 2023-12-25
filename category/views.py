@@ -31,5 +31,4 @@ class CategoryView(QuerysetMixin, viewsets.ModelViewSet):
         return self.get_paginated_response(serializer.data)
 
     def perform_create(self, serializer):
-        print(self.request.user)
         serializer.save(user=self.request.user)
