@@ -32,14 +32,12 @@ SECRET_KEY = os.environ.get(
 IS_HEROKU_APP = "DYNO" in os.environ and not "CI" in os.environ
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False if IS_HEROKU_APP else True
+DEBUG = not IS_HEROKU_APP
 
 if IS_HEROKU_APP:
     ALLOWED_HOSTS = ["*"]
 else:
     ALLOWED_HOSTS = ["0.0.0.0", "localhost", "127.0.0.1"]
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 DEFAULT_APPS = [
@@ -85,6 +83,7 @@ MIDDLEWARE = [
     # See: https://whitenoise.readthedocs.io
     "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = "backend.urls"
 
