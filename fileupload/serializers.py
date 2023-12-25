@@ -9,7 +9,9 @@ class CustomFileField(serializers.FileField):
 
     def to_representation(self, value):
         filename, extension = value.name.split("/")[-1].split(".")
-        filename = filename.split("-")[0]
+        filename = filename.split("_")
+        # join all but last element of filename
+        filename = "_".join(filename[:-1])
         return f"{filename}.{extension}"
 
 
