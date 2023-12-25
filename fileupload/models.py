@@ -39,7 +39,7 @@ class FileUpload(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
-    message = models.CharField(max_length=255, null=True, blank=True)
+    message = models.CharField(max_length=500, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def save(self, *args, **kwargs):
@@ -48,6 +48,8 @@ class FileUpload(models.Model):
         """
         if self.file.name and not self.file.name.endswith(".csv"):
             raise Exception("Invalid file extension.")
+        if len(self.message) > 500:
+            self.message = self.message[:497] + "..."
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
