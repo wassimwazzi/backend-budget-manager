@@ -1,12 +1,12 @@
 import logging
 from thefuzz import fuzz
-from .text_classifier import SimpleClassifier, fuzzy_search
+from .text_classifier import fuzzy_search # SimpleClassifier
 from category.models import Category
 from transaction.models import Transaction
 from django.db import transaction as db_transaction
 
 
-text_classifier = SimpleClassifier()
+# text_classifier = SimpleClassifier()
 
 
 def _infer(transactions_to_infer, categories, default_category):
@@ -14,7 +14,7 @@ def _infer(transactions_to_infer, categories, default_category):
     prev_transactions = Transaction.objects.filter(
         user=default_category.user, category__income=default_category.income
     )
-    category_names = [c.category for c in categories]
+    # category_names = [c.category for c in categories]
     user = default_category.user
     prev_inferred_transactions = prev_transactions.filter(
         inferred_category=True, user=user, category__in=categories
@@ -140,19 +140,19 @@ def _infer(transactions_to_infer, categories, default_category):
 
             # if no previous transaction has same description, use NLP
             # Only use NLP on description as we will rarely get a match on code
-            result = text_classifier.predict(description, category_names)
-            if result:
-                logging.debug(
-                    "Inferred category using NLP for %s: %s", description, result
-                )
-                transaction.category = categories.get(category=result)
-                transaction.inferred_category = True
-                transaction.save()
-                # add to previous transactions
-                prev_inferred_descriptions[description] = result
-                if code:
-                    prev_inferred_codes[code] = result
-                continue
+            # result = text_classifier.predict(description, category_names)
+            # if result:
+            #     logging.debug(
+            #         "Inferred category using NLP for %s: %s", description, result
+            #     )
+            #     transaction.category = categories.get(category=result)
+            #     transaction.inferred_category = True
+            #     transaction.save()
+            #     # add to previous transactions
+            #     prev_inferred_descriptions[description] = result
+            #     if code:
+            #         prev_inferred_codes[code] = result
+            #     continue
         logging.debug(
             "Using default category as no description was given and couldn't match code. %s",
             transaction,

@@ -6,8 +6,8 @@ django_extensions
 pandas
 rapidfuzz
 thefuzz
-transformers
-torch
+# transformers
+# torch
 celery
 redis
 gunicorn
