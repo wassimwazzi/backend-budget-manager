@@ -32,7 +32,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         Validate amount
         """
         if value <= 0:
-            raise serializers.ValidationError("Amount cannot be negative")
+            raise serializers.ValidationError("Amount must be larger than 0")
         return value
 
     def validate_category(self, value):
