@@ -14,7 +14,7 @@ INCOME_CATEGORIES = [
 ]
 
 EXPENSE_CATEGORIES = [
-    ("Clothing", False, "Clothing", False),
+    ("Shopping", False, "Shopping", False),
     ("Depanneur", False, "Convenience store", False),
     ("Education", False, "Education", False),
     ("Entertainment", False, "Entertainment", False),

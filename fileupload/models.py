@@ -21,7 +21,6 @@ def upload_to(instance, filename):
     user = instance.user
     # generate unique hash for filename
     now = datetime.now().strftime("%Y%m%d%H%M%S")
-    print(now)
     try:
         filename, extension = filename.split(".")
     except ValueError as e:
