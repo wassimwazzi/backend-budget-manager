@@ -4,13 +4,13 @@ File Upload Model
 from datetime import datetime
 from django.db import models
 from django.contrib.auth.models import User
+import os
 
 
 class Status(models.TextChoices):
     """
     Status
     """
-
     PENDING = "PENDING"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
@@ -55,5 +55,6 @@ class FileUpload(models.Model):
         """
         Delete file from disk when deleting the object.
         """
-        self.file.delete()
+        if os.path.isfile(self.file.path):
+            os.remove(self.file.path)
         super().delete(*args, **kwargs)
