@@ -29,6 +29,3 @@ class CategoryView(QuerysetMixin, viewsets.ModelViewSet):
         page = self.paginate_queryset(queryset)
         serializer = CategorySerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
