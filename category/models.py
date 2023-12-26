@@ -25,10 +25,12 @@ class Category(models.Model):
         """
         Save category
         """
+        other_default = Category.objects.filter(
+            user=self.user, is_default=True, income=self.income
+        ).first()
+            
         if self.is_default:
-            if Category.objects.filter(
-                user=self.user, is_default=True, income=self.income
-            ).exists():
+            if other_default and other_default.id != self.id:
                 raise IntegrityError("Cannot have multiple default categories")
         super(Category, self).save(*args, **kwargs)
 

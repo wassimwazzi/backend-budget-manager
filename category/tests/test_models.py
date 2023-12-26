@@ -34,3 +34,12 @@ class CategoryModelTest(TestCase):
         """
         with self.assertRaises(django.db.utils.IntegrityError):
             CategoryFactory(is_default=True, user=self.user)
+
+    def test_can_update_default_category(self):
+        """
+        Test can update default category
+        """
+        category = Category.objects.filter(user=self.user, is_default=True).first()
+        category.name = "New Name"
+        category.save()
+        self.assertEqual(category.name, "New Name")
