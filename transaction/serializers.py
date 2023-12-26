@@ -57,7 +57,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         """
         Validate transaction
         """
-        if not data["code"] and not data["description"]:
+        if not data.get("code", None) and not data.get("description", None):
             raise serializers.ValidationError(
                 "Code and description cannot both be null"
             )

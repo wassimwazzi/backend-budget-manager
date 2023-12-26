@@ -28,12 +28,20 @@ class TransactionAPITestCase(TestCase):
         self.assertDictEqual(response.data["results"][0], TransactionSerializer(transaction).data)
 
     def test_transaction_list_filter_by_code(self):
-        transaction1 = TransactionFactory(user=self.user)
-        transaction2 = TransactionFactory(user=self.user)
-        response = self.client.get(self.url, {"filter": "code", "filter_value": transaction2.code})
+        transaction1 = TransactionFactory(user=self.user, code="123")
+        transaction2 = TransactionFactory(user=self.user, code="456")
+        response = self.client.get(self.url, {"filter[]": "code", "filter_value[]": transaction2.code})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
         self.assertDictEqual(response.data["results"][0], TransactionSerializer(transaction2).data)
+
+    def test_transaction_list_filter_by_category(self):
+        transaction1 = TransactionFactory(user=self.user, category=self.category)
+        transaction2 = TransactionFactory(user=self.user)
+        response = self.client.get(self.url, {"filter[]": "category", "filter_value[]": transaction1.category.category})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertDictEqual(response.data["results"][0], TransactionSerializer(transaction1).data)
 
     def test_transaction_list_does_not_return_other_users_transactions(self):
         user2 = User.objects.create_user(username="testuser2", password="testpassword2")
