@@ -10,6 +10,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     """
 
     category = CategorySerializer(read_only=True)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Transaction

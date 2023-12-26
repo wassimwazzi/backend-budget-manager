@@ -31,28 +31,26 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         if date > timezone.now().date():
             raise serializers.ValidationError("Date cannot be in the future")
 
-    def perform_create(self, serializer):
+    def perform_create_or_update(self, serializer):
         self.validate_date()
-        category = self.request.data.get("category")
-        try:
-            category = Category.objects.get(id=category)
-        except (Category.DoesNotExist, ValueError) as e:
-            raise serializers.ValidationError("Category not found: {}".format(e))
-        serializer.save(
-            user=self.request.user, category=category, inferred_category=False
-        )
-
-    def perform_update(self, serializer):
-        self.validate_date()
+        user = self.request.user
         category_id = self.request.data.get("category")
         if category_id:
             try:
-                category = Category.objects.get(id=category_id)
+                category = Category.objects.get(id=category_id, user=user)
             except (Category.DoesNotExist, ValueError) as e:
-                raise serializers.ValidationError("Category not found: {}".format(e))
+                raise serializers.ValidationError(
+                    "Category not found or does not belong to the user"
+                ) from e
             serializer.save(category=category, inferred_category=False)
         else:
-            serializer.save(inferred_category=False)
+            serializer.save()
+
+    def perform_create(self, serializer):
+        self.perform_create_or_update(serializer)
+
+    def perform_update(self, serializer):
+        self.perform_create_or_update(serializer)
 
     @action(detail=False, methods=["post"])
     def infer(self, request):
