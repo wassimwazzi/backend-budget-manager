@@ -7,7 +7,7 @@ from currency.tests.factories import CurrencyFactory
 from .factories import TransactionFactory
 from ..serializers import TransactionSerializer
 from ..models import Transaction
-
+from datetime import date
 
 class TransactionAPITestCase(TestCase):
     def setUp(self):
@@ -53,7 +53,7 @@ class TransactionAPITestCase(TestCase):
         )
 
     def test_transaction_list_does_not_return_other_users_transactions(self):
-        user2 = User.objects.create_user(username="testuser2", password="testpassword2")
+        user2 = UserFactory(username="testuser2", password="testpassword2")
         TransactionFactory(user=user2)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -124,7 +124,7 @@ class TransactionAPITestCase(TestCase):
         self.assertDictEqual(TransactionSerializer(transaction).data, old_data)
 
     def test_transaction_cannot_update_other_users_transactions(self):
-        user2 = User.objects.create_user(username="testuser2", password="testpassword2")
+        user2 =UserFactory(username="testuser2", password="testpassword2")
         transaction = TransactionFactory(user=user2)
         old_data = TransactionSerializer(transaction).data
         updated_data = {
@@ -149,7 +149,7 @@ class TransactionAPITestCase(TestCase):
         self.assertEqual(Transaction.objects.count(), 0)
 
     def test_transaction_cannot_delete_other_users_transactions(self):
-        user2 = User.objects.create_user(username="testuser2", password="testpassword2")
+        user2 = UserFactory(username="testuser2", password="testpassword2")
         transaction = TransactionFactory(user=user2)
         response = self.client.delete(self.url + f"{transaction.id}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -273,3 +273,43 @@ class TestSpendByCategory(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
+
+class TestSpendVsIncomeByMonth(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = "/api/transactions/spend_vs_income_by_month/"
+    
+    def test_spend_vs_income_by_month(self):
+        TransactionFactory(user=self.user, category__income=False, amount=100)
+        TransactionFactory(user=self.user, category__income=True, amount=1000)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["month"], Transaction.objects.first().date.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[0]["spend"], 100)
+        self.assertEqual(response.data[0]["income"], 1000)
+
+    def test_spend_vs_income_by_month_multiple_months(self):
+        month1 = date(2021, 1, 1)
+        month2 = date(2021, 2, 1)
+        TransactionFactory(user=self.user, category__income=False, amount=100, date=month1)
+        TransactionFactory(user=self.user, category__income=True, amount=1000, date=month1)
+        TransactionFactory(user=self.user, category__income=False, amount=200, date=month2)
+        TransactionFactory(user=self.user, category__income=True, amount=2000, date=month2)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(
+            response.data[0]["month"], month2.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[0]["spend"], 200)
+        self.assertEqual(response.data[0]["income"], 2000)
+        self.assertEqual(
+            response.data[1]["month"], month1.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[1]["spend"], 100)
+        self.assertEqual(response.data[1]["income"], 1000)

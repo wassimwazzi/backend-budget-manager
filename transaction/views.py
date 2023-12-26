@@ -93,6 +93,7 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
             .annotate(total=Sum("amount"))
             .values("category__category", "total")
             .annotate(category=F("category__category"))
+            .values("category", "total")
             .order_by("-total")
         )
         return Response(spend_by_category, status=200)
