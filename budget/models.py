@@ -5,7 +5,7 @@ from category.models import Category
 from currency.models import Currency
 from transaction.models import Transaction
 from django.db import models
-from django.db import connection
+from django.db.utils import IntegrityError
 from django.contrib.auth.models import User
 from dateutil.relativedelta import relativedelta
 
@@ -40,7 +40,9 @@ class Budget(models.Model):
         """
         self.start_date = self.start_date.replace(day=1)
         if self.amount < 0:
-            raise ValueError("Budget amount must be positive.")
+            raise IntegrityError("Budget amount must be positive.")
+        if self.category.user != self.user:
+            raise IntegrityError("Category must belong to user.")
         super().save(*args, **kwargs)
 
     @staticmethod

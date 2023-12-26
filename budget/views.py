@@ -21,27 +21,34 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
         queryset = Budget.objects.filter(user=user)
         return self.get_filtered_queryet(queryset)
 
-    def perform_create(self, serializer):
-        category_id = self.request.data.get("category")
-        if category_id:
-            try:
-                category = Category.objects.get(id=category_id)
-            except (Category.DoesNotExist, ValueError) as e:
-                raise serializers.ValidationError("Category not found: {}".format(e))
-            serializer.save(category=category, user=self.request.user)
-        else:
-            serializer.save(user=self.request.user)
+    def perform_create_or_update(self, serializer):
+        user = self.request.user
+        validated_data = serializer.validated_data
 
-    def perform_update(self, serializer):
         category_id = self.request.data.get("category")
+        start_date = validated_data.get("start_date")
         if category_id:
             try:
-                category = Category.objects.get(id=category_id)
+                category = Category.objects.get(id=category_id, user=user)
             except (Category.DoesNotExist, ValueError) as e:
-                raise serializers.ValidationError("Category not found: {}".format(e))
+                raise serializers.ValidationError(
+                    "Category not found or does not belong to the user"
+                ) from e
+            if Budget.objects.filter(
+                category=category, user=user, start_date=start_date
+            ).exists():
+                raise serializers.ValidationError(
+                    "Budget for this category and date already exists"
+                )
             serializer.save(category=category)
         else:
             serializer.save()
+
+    def perform_create(self, serializer):
+        self.perform_create_or_update(serializer)
+
+    def perform_update(self, serializer):
+        self.perform_create_or_update(serializer)
 
     @action(detail=False, methods=["get"])
     def summary(self, request):

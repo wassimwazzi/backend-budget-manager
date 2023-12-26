@@ -22,14 +22,16 @@ class TestCategoryView(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
-        self.assertDictEqual(response.data["results"][0], CategorySerializer(self.category).data)
+        self.assertDictEqual(
+            response.data["results"][0], CategorySerializer(self.category).data
+        )
 
     def test_category_list_gets_only_current_user_categories(self):
         user2 = UserFactory()
         CategoryFactory(user=user2)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1) # self.category
+        self.assertEqual(response.data["count"], 1)  # self.category
 
     def test_list_pagination_off(self):
         response = self.client.get(self.url, {"paginate": "false"})
@@ -42,7 +44,9 @@ class TestCategoryView(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0], CategorySerializer(self.category).data)
+        self.assertEqual(
+            response.data["results"][0], CategorySerializer(self.category).data
+        )
 
     def test_category_api_create(self):
         category_data = {
@@ -56,3 +60,27 @@ class TestCategoryView(TestCase):
         self.assertEqual(category.category, category_data["category"])
         self.assertEqual(category.description, category_data["description"])
         self.assertEqual(category.income, category_data["income"])
+
+    def test_category_api_create_auto_uses_current_user(self):
+        category_data = {
+            "category": "Test Category",
+            "description": "Test Description",
+            "income": False,
+        }
+        response = self.client.post(self.url, category_data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        category = Category.objects.get(id=response.data["id"])
+        self.assertEqual(category.user, self.user)
+
+    def test_category_api_create_cannot_set_other_user(self):
+        user2 = UserFactory()
+        category_data = {
+            "category": "Test Category",
+            "description": "Test Description",
+            "income": False,
+            "user": user2.id,
+        }
+        response = self.client.post(self.url, category_data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        category = Category.objects.get(id=response.data["id"])
+        self.assertEqual(category.user, self.user)

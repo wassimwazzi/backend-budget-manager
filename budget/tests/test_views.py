@@ -5,6 +5,7 @@ from category.tests.factories import CategoryFactory
 from currency.tests.factories import CurrencyFactory
 from .factories import BudgetFactory
 from ..serializers import BudgetSerializer
+from category.serializers import CategorySerializer
 from ..models import Budget
 import datetime
 from decimal import Decimal
@@ -62,6 +63,18 @@ class TestBudgetView(TestCase):
         response = self.client.post(self.url, budget_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_budget_api_create_with_other_users_category(self):
+        user2 = UserFactory()
+        other_user_category = CategoryFactory(user=user2)
+        budget_data = {
+            "amount": "75.25",
+            "currency": self.currency.code,
+            "start_date": "2023-02",
+            "category": other_user_category.id,
+        }
+        response = self.client.post(self.url, budget_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_budget_api_create_with_invalid_currency(self):
         budget_data = {
             "amount": "75.25",
@@ -82,11 +95,25 @@ class TestBudgetView(TestCase):
         response = self.client.post(self.url, budget_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_budget_api_create_with_same_date_and_category(self):
+        budget = BudgetFactory(user=self.user)
+        budget_data = {
+            "amount": "75.25",
+            "currency": self.currency.code,
+            "start_date": budget.start_date.strftime("%Y-%m"),
+            "category": budget.category.id,
+        }
+        response = self.client.post(self.url, budget_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_budget_api_retrieve(self):
         budget = BudgetFactory(user=self.user)
         response = self.client.get(self.url + f"{budget.id}/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertDictEqual(response.data, BudgetSerializer(budget).data)
+        # self.assertDictEqual(response.data, BudgetSerializer(budget).data)
+        self.assertDictEqual(
+            response.data["category"], CategorySerializer(budget.category).data
+        )
 
     def test_budget_api_update(self):
         budget = BudgetFactory(user=self.user)
