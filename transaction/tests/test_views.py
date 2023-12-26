@@ -1,5 +1,5 @@
 from django.test import TestCase
-from django.contrib.auth.models import User
+from users.user_factory import UserFactory
 from rest_framework.test import APIClient
 from rest_framework import status
 from category.tests.factories import CategoryFactory
@@ -11,9 +11,7 @@ from ..models import Transaction
 
 class TransactionAPITestCase(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser", password="testpassword"
-        )
+        self.user = UserFactory()
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         self.category = CategoryFactory(user=self.user)
@@ -25,23 +23,34 @@ class TransactionAPITestCase(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
-        self.assertDictEqual(response.data["results"][0], TransactionSerializer(transaction).data)
+        self.assertDictEqual(
+            response.data["results"][0], TransactionSerializer(transaction).data
+        )
 
     def test_transaction_list_filter_by_code(self):
         transaction1 = TransactionFactory(user=self.user, code="123")
         transaction2 = TransactionFactory(user=self.user, code="456")
-        response = self.client.get(self.url, {"filter[]": "code", "filter_value[]": transaction2.code})
+        response = self.client.get(
+            self.url, {"filter[]": "code", "filter_value[]": transaction2.code}
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
-        self.assertDictEqual(response.data["results"][0], TransactionSerializer(transaction2).data)
+        self.assertDictEqual(
+            response.data["results"][0], TransactionSerializer(transaction2).data
+        )
 
     def test_transaction_list_filter_by_category(self):
         transaction1 = TransactionFactory(user=self.user, category=self.category)
         transaction2 = TransactionFactory(user=self.user)
-        response = self.client.get(self.url, {"filter[]": "category", "filter_value[]": transaction1.category.category})
+        response = self.client.get(
+            self.url,
+            {"filter[]": "category", "filter_value[]": transaction1.category.category},
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
-        self.assertDictEqual(response.data["results"][0], TransactionSerializer(transaction1).data)
+        self.assertDictEqual(
+            response.data["results"][0], TransactionSerializer(transaction1).data
+        )
 
     def test_transaction_list_does_not_return_other_users_transactions(self):
         user2 = User.objects.create_user(username="testuser2", password="testpassword2")
@@ -145,3 +154,122 @@ class TransactionAPITestCase(TestCase):
         response = self.client.delete(self.url + f"{transaction.id}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(Transaction.objects.count(), 1)
+
+
+class TestSpendByCategory(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = "/api/transactions/spend_by_category/"
+        self.transactions = TransactionFactory.create_batch(
+            3, user=self.user, category__income=False
+        )
+
+    def test_spend_by_category(self):
+        # Also validates that they are sorted by total descending
+        self.transactions[0].amount = 300
+        self.transactions[1].amount = 200
+        self.transactions[2].amount = 100
+        self.transactions[0].save()
+        self.transactions[1].save()
+        self.transactions[2].save()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        self.assertEqual(
+            response.data[0]["category"], self.transactions[0].category.category
+        )
+        self.assertEqual(response.data[0]["total"], self.transactions[0].amount)
+        self.assertEqual(
+            response.data[1]["category"], self.transactions[1].category.category
+        )
+        self.assertEqual(response.data[1]["total"], self.transactions[1].amount)
+        self.assertEqual(
+            response.data[2]["category"], self.transactions[2].category.category
+        )
+        self.assertEqual(response.data[2]["total"], self.transactions[2].amount)
+
+    def test_spend_by_category_monthly(self):
+        response = self.client.get(self.url, {"monthly": True})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        self.assertEqual(
+            response.data[0]["category"], self.transactions[0].category.category
+        )
+        self.assertEqual(
+            response.data[0]["month"], self.transactions[0].date.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[0]["total"], self.transactions[0].amount)
+        self.assertEqual(
+            response.data[1]["category"], self.transactions[1].category.category
+        )
+        self.assertEqual(
+            response.data[1]["month"], self.transactions[1].date.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[1]["total"], self.transactions[1].amount)
+        self.assertEqual(
+            response.data[2]["category"], self.transactions[2].category.category
+        )
+        self.assertEqual(
+            response.data[2]["month"], self.transactions[2].date.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[2]["total"], self.transactions[2].amount)
+
+    def test_spend_by_category_monthly_filter_by_category(self):
+        response = self.client.get(
+            self.url,
+            {
+                "monthly": True,
+                "filter[]": "category",
+                "filter_value[]": self.transactions[0].category.category,
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["category"], self.transactions[0].category.category
+        )
+        self.assertEqual(
+            response.data[0]["month"], self.transactions[0].date.strftime("%Y-%m")
+        )
+        self.assertEqual(response.data[0]["total"], self.transactions[0].amount)
+
+    def test_spend_by_category_monthly_filter_by_category_does_not_exist(self):
+        response = self.client.get(
+            self.url,
+            {
+                "monthly": True,
+                "filter[]": "category",
+                "filter_value[]": "does not exist",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_spend_by_category_sums_up_transactions(self):
+        Transaction.objects.all().delete()
+        transaction1 = TransactionFactory(
+            user=self.user,
+            category__income=False,
+            amount=100
+        )
+        TransactionFactory(
+            user=self.user,
+            category=transaction1.category,
+            amount=200
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["category"], transaction1.category.category
+        )
+        self.assertEqual(response.data[0]["total"], 300)
+
+    def test_spend_by_category_does_not_include_income(self):
+        Transaction.objects.all().delete()
+        TransactionFactory(user=self.user, category__income=True)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
