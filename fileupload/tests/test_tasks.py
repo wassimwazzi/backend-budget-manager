@@ -1,5 +1,6 @@
 from django.test import TestCase
 from category.models import Category
+from category.tests.factories import CategoryFactory
 from transaction.models import Transaction
 from users.user_factory import UserFactory
 from .factories import FileUploadFactory
@@ -113,6 +114,25 @@ class SanitizeDfTest(TestCase):
         error_msg, df = sanitize_df(self.df, self.categories)
         self.assertIn("negative", error_msg)
 
+    def test_category_case_insensitive(self):
+        upper_case_category = CategoryFactory(
+            user=self.user, category="TEST", income=False
+        )
+        df = pd.DataFrame(
+            {
+                "date": ["2020-01-01"],
+                "description": ["test"],
+                "code": ["test"],
+                "income": [float("nan")],
+                "expense": [20],
+                "category": [upper_case_category.category.lower()],
+            }
+        )
+        # self.df["category"][0] = self.categories.first().category.upper()
+        categories = Category.objects.filter(user=self.user)
+        error_msg, df = sanitize_df(df, categories)
+        self.assertEqual(error_msg, "")
+
 
 class TestCreateTranscations(TestCase):
     def setUp(self):
@@ -143,6 +163,25 @@ class TestCreateTranscations(TestCase):
         error_msg = create_transactions(self.df, self.file, self.categories)
         self.assertIn("invalid", error_msg)
         self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_create_transactions_category_case_insensitive(self):
+        upper_case_category = CategoryFactory(
+            user=self.user, category="TEST", income=False
+        )
+        df = pd.DataFrame(
+            {
+                "date": ["2020-01-01"],
+                "description": ["test"],
+                "code": ["test"],
+                "income": [float("nan")],
+                "expense": [20],
+                "category": [upper_case_category.category.lower()],
+            }
+        )
+        error_msg = create_transactions(df, self.file, self.categories)
+        self.assertEqual(error_msg, None)
+        self.assertEqual(Transaction.objects.count(), 1)
+        self.assertEqual(Transaction.objects.filter(category__income=False).count(), 1)
 
 
 class TestProcessFile(TestCase):
@@ -191,7 +230,8 @@ class TestProcessFile(TestCase):
         with mock.patch(
             "builtins.open", mock.mock_open(read_data=self.file_contents)
         ), mock.patch(
-            "fileupload.tasks.create_transactions", return_value="Error creating transactions"
+            "fileupload.tasks.create_transactions",
+            return_value="Error creating transactions",
         ):
             process_file(self.file.id)
             self.file.refresh_from_db()
@@ -203,7 +243,8 @@ class TestProcessFile(TestCase):
         with mock.patch(
             "builtins.open", mock.mock_open(read_data=self.file_contents)
         ), mock.patch(
-            "fileupload.tasks.sanitize_df", side_effect=Exception("Something went wrong")
+            "fileupload.tasks.sanitize_df",
+            side_effect=Exception("Something went wrong"),
         ), mock.patch(
             "logging.error", return_value=None
         ) as mock_logging:

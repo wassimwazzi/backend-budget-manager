@@ -94,12 +94,14 @@ def sanitize_df(df, categories):
     missing_income_categories = [
         category
         for category in income_categories
-        if category and category not in existing_income_categories
+        if category
+        and not existing_income_categories.filter(category__iexact=category).exists()
     ]
     missing_expense_categories = [
         category
         for category in expense_categories
-        if category and category not in existing_expense_categories
+        if category
+        and not existing_expense_categories.filter(category__iexact=category).exists()
     ]
     if missing_income_categories:
         error_msg += f"These income categories do not exist: {', '.join(missing_income_categories)}\n"
@@ -119,7 +121,7 @@ def create_transactions(df, instance, categories):
                     else categories.get(income=False, is_default=True).category
                 )
                 category = (
-                    categories.get(category=row["category"])
+                    categories.get(category__iexact=row["category"])
                     if row["category"]
                     else categories.get(category=default_category)
                 )
