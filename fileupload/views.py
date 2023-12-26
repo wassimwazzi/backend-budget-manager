@@ -31,10 +31,8 @@ class FileUploadView(
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         file_upload = serializer.save(user=self.request.user)
-        # FIXME: Uncomment to add celery task back
-        # task = process_file.delay(file_upload.id)
-        # result = task.get()
-        result = process_file(file_upload.id)
+        task = process_file(file_upload.id)
+        result = task(blocking=True)
         if not result:
             return Response(
                 "Failed to process file", status=status.HTTP_500_INTERNAL_SERVER_ERROR

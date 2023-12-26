@@ -54,6 +54,7 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "django_extensions",
+    "huey.contrib.djhuey",
     # Use WhiteNoise's runserver implementation instead of the Django default, for dev-prod parity.
     "whitenoise.runserver_nostatic",
 ]
@@ -242,6 +243,24 @@ LOGGING = {
 }
 
 
-# Celery settings
-CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"
+# Huey configuration
+HUEY = {
+    "huey_class": "huey.SqliteHuey",  # Use SqliteHuey for testing.
+    # "filename": "huey.db",  # Name of database file (if using sqlite).
+    # "name": DATABASES["default"]["NAME"],  # Use db name for huey.
+    # "results": True,  # Store return values of tasks.
+    # "store_none": False,  # If a task returns None, do not save to results.
+    "immediate": False,  # If DEBUG=True, run synchronously.
+    # # "blocking": True,  # Perform blocking pop rather than poll Redis.
+    # "consumer": {
+    #     "workers": 1,
+    #     "worker_type": "thread",
+    #     "initial_delay": 0.1,  # Smallest polling interval, same as -d.
+    #     "backoff": 1.15,  # Exponential backoff using this rate, -b.
+    #     "max_delay": 10.0,  # Max possible polling interval, -m.
+    #     "scheduler_interval": 1,  # Check schedule every second, -s.
+    #     "periodic": True,  # Enable crontab feature.
+    #     "check_worker_health": True,  # Enable worker health checks.
+    #     "health_check_interval": 1,  # Check worker health every second.
+    # },
+}
