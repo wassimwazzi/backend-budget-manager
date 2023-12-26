@@ -250,7 +250,7 @@ HUEY = {
     # "name": DATABASES["default"]["NAME"],  # Use db name for huey.
     # "results": True,  # Store return values of tasks.
     # "store_none": False,  # If a task returns None, do not save to results.
-    "immediate": False,  # If DEBUG=True, run synchronously.
+    "immediate": DEBUG,  # If DEBUG=True, run synchronously.
     # # "blocking": True,  # Perform blocking pop rather than poll Redis.
     # "consumer": {
     #     "workers": 1,

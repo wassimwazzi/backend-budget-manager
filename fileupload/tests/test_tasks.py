@@ -197,8 +197,9 @@ class TestProcessFile(TestCase):
 
     def test_process_file(self):
         with mock.patch("builtins.open", mock.mock_open(read_data=self.file_contents)):
-            process_file(self.file.id)
+            res = process_file(self.file.id)(blocking=True)
             self.file.refresh_from_db()
+        self.assertEqual(res, True)
         self.assertEqual(Transaction.objects.count(), 3)
 
     def test_when_amount_has_comma(self):
@@ -208,8 +209,9 @@ class TestProcessFile(TestCase):
             2020-01-03,test,code3,10.00,,
         """
         with mock.patch("builtins.open", mock.mock_open(read_data=self.file_contents)):
-            process_file(self.file.id)
+            res = process_file(self.file.id)(blocking=True)
             self.file.refresh_from_db()
+        self.assertEqual(res, True)
         self.assertEqual(self.file.status, Status.COMPLETED)
         self.assertEqual(Transaction.objects.count(), 3)
         self.assertEqual(Transaction.objects.get(code="code1").amount, 1000)
@@ -220,8 +222,9 @@ class TestProcessFile(TestCase):
         ), mock.patch(
             "fileupload.tasks.sanitize_df", return_value=("Invalid date", None)
         ):
-            process_file(self.file.id)
+            res = process_file(self.file.id)(blocking=True)
             self.file.refresh_from_db()
+        self.assertEqual(res, False)
         self.assertEqual(self.file.status, Status.FAILED)
         self.assertEqual(Transaction.objects.count(), 0)
         self.assertIn("Invalid date", self.file.message)
@@ -233,8 +236,9 @@ class TestProcessFile(TestCase):
             "fileupload.tasks.create_transactions",
             return_value="Error creating transactions",
         ):
-            process_file(self.file.id)
+            res = process_file(self.file.id)(blocking=True)
             self.file.refresh_from_db()
+        self.assertEqual(res, False)
         self.assertEqual(self.file.status, Status.FAILED)
         self.assertEqual(Transaction.objects.count(), 0)
         self.assertIn("Error creating transactions", self.file.message)
@@ -248,8 +252,9 @@ class TestProcessFile(TestCase):
         ), mock.patch(
             "logging.error", return_value=None
         ) as mock_logging:
-            process_file(self.file.id)
+            res = process_file(self.file.id)(blocking=True)
             self.file.refresh_from_db()
+        self.assertEqual(res, False)
         self.assertEqual(self.file.status, Status.FAILED)
         self.assertEqual(Transaction.objects.count(), 0)
         self.assertIn("Error processing file", self.file.message)
