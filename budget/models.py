@@ -120,24 +120,4 @@ class Budget(models.Model):
                     "remaining": budget["budget"] - transaction["actual"],
                 }
             )
-        # for budget in budgets:
-        #     budget_summary.append(
-        #         {
-        #             "category": budget["category__category"],
-        #             "budget": budget["budget"],
-        #             "actual": 0,
-        #             "remaining": budget["budget"],
-        #         }
-        #     )
-        # for transaction in transactions:
-        #     for budget in budget_summary:
-        #         if budget["category"] == transaction["category__category"]:
-        #             budget["actual"] = transaction["actual"]
-        #             budget["remaining"] = budget["budget"] - transaction["actual"]
-        # # # Remove budgets with no transactions and no budget
-        # budget_summary = [
-        #     budget
-        #     for budget in budget_summary
-        #     if budget["actual"] > 0 or budget["budget"] > 0
-        # ]
         return budget_summary

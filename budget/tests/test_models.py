@@ -80,7 +80,7 @@ class BudgetSummaryTestCase(TestCase):
         ]
         self.assertCountEqual(budget_summary, expected)
 
-    def test_budget_summary_does_not_include_income_categories(self):
+    def test_does_not_include_income_categories_for_budgets(self):
         """
         Test budget summary does not include income categories
         """
@@ -99,7 +99,26 @@ class BudgetSummaryTestCase(TestCase):
         budget_summary = Budget.get_budget_by_category(self.month, self.user)
         self.assertEqual(len(budget_summary), 1)
 
-    def test_budget_summary_does_not_include_other_users_categories(self):
+    def test_does_not_include_income_categories_for_transactions(self):
+        """
+        Test budget summary does not include income categories
+        """
+        TransactionFactory(
+            category=self.category1,
+            date=self.month,
+            user=self.user,
+            amount=100,
+        )
+        TransactionFactory(
+            category=self.income_category,
+            date=self.month,
+            user=self.user,
+            amount=200,
+        )
+        budget_summary = Budget.get_budget_by_category(self.month, self.user)
+        self.assertEqual(len(budget_summary), 1)
+
+    def test_does_not_include_other_users_categories(self):
         """
         Test budget summary does not include other users categories
         """
@@ -126,7 +145,7 @@ class BudgetSummaryTestCase(TestCase):
         budget_summary = Budget.get_budget_by_category(self.month, self.user)
         self.assertEqual(len(budget_summary), 2)
 
-    def test_budget_summary_uses_most_recent_budget_for_category(self):
+    def test_uses_most_recent_budget_for_category(self):
         """
         Test budget summary uses most recent budget for category
         """
@@ -154,7 +173,7 @@ class BudgetSummaryTestCase(TestCase):
         ]
         self.assertListEqual(budget_summary, expected)
 
-    def test_budget_summary_shows_budget_0_if_transaction_exists_but_no_budget(self):
+    def test_shows_budget_0_if_transaction_exists_but_no_budget(self):
         """
         Test budget summary shows budget 0 if transaction exists but no budget
         """
@@ -172,6 +191,56 @@ class BudgetSummaryTestCase(TestCase):
                 "budget": 0,
                 "actual": 100,
                 "remaining": -100,
+            },
+        ]
+        self.assertListEqual(budget_summary, expected)
+
+    def test_shows_actual_0_if_budget_exists_but_no_transaction(self):
+        """
+        Test budget summary shows actual 0 if budget exists but no transaction
+        """
+        BudgetFactory(
+            category=self.category1,
+            start_date=self.month,
+            user=self.user,
+            amount=100,
+        )
+        budget_summary = Budget.get_budget_by_category(self.month, self.user)
+        self.assertEqual(len(budget_summary), 1)
+        expected = [
+            {
+                "category": self.category1.category,
+                "budget": 100,
+                "actual": 0,
+                "remaining": 100,
+            },
+        ]
+        self.assertListEqual(budget_summary, expected)
+
+    def test_sums_up_transactions(self):
+        """
+        Test budget summary sums up transactions
+        """
+        TransactionFactory(
+            category=self.category1,
+            date=self.month,
+            user=self.user,
+            amount=100,
+        )
+        TransactionFactory(
+            category=self.category1,
+            date=self.month,
+            user=self.user,
+            amount=200,
+        )
+        budget_summary = Budget.get_budget_by_category(self.month, self.user)
+        self.assertEqual(len(budget_summary), 1)
+        expected = [
+            {
+                "category": self.category1.category,
+                "budget": 0,
+                "actual": 300,
+                "remaining": -300,
             },
         ]
         self.assertListEqual(budget_summary, expected)
