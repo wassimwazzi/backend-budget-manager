@@ -183,6 +183,23 @@ class TestCreateTranscations(TestCase):
         self.assertEqual(Transaction.objects.count(), 1)
         self.assertEqual(Transaction.objects.filter(category__income=False).count(), 1)
 
+    def test_create_transactions_sets_inferred_category_to_true(self):
+        error_msg = create_transactions(self.df, self.file, self.categories)
+        self.assertEqual(error_msg, None)
+        self.assertEqual(Transaction.objects.count(), 3)
+        self.assertEqual(
+            Transaction.objects.filter(inferred_category=True).count(), 3
+        )
+
+    def test_create_transactions_sets_inferred_category_to_false(self):
+        self.df["category"][0] = self.categories.first().category
+        error_msg = create_transactions(self.df, self.file, self.categories)
+        self.assertEqual(error_msg, None)
+        self.assertEqual(Transaction.objects.count(), 3)
+        self.assertEqual(
+            Transaction.objects.filter(inferred_category=False).count(), 1
+        )
+
 
 class TestProcessFile(TestCase):
     def setUp(self):
