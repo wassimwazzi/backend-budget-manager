@@ -2,7 +2,6 @@ from rest_framework import serializers
 from .models import Budget
 from category.serializers import CategorySerializer
 
-
 class BudgetSerializer(serializers.ModelSerializer):
     """
     Budget serializer

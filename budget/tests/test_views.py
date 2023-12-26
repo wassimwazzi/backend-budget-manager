@@ -1,5 +1,4 @@
 from django.test import TestCase
-from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status
 from category.tests.factories import CategoryFactory
@@ -143,7 +142,9 @@ class TestBudgetView(TestCase):
         start_date = datetime.date(2023, 2, 1)
         self.category.income = False
         self.category.save()
-        budget = BudgetFactory(user=self.user, start_date=start_date, category=self.category)
+        budget = BudgetFactory(
+            user=self.user, start_date=start_date, category=self.category
+        )
         response = self.client.get(self.url + "summary/", {"month": "2023-02"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
