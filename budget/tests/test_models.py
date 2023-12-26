@@ -43,6 +43,12 @@ class BudgetTestCase(TestCase):
         with self.assertRaises(django.db.utils.IntegrityError):
             BudgetFactory(category=category, user=user)
 
+    def test_budget_amount_must_be_positive(self):
+        """
+        Test budget amount must be positive
+        """
+        with self.assertRaises(django.db.utils.IntegrityError):
+            BudgetFactory(amount=-1)
 
 class BudgetSummaryTestCase(TestCase):
     """
