@@ -31,22 +31,10 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-## Celery
-1- Install Redis
+## Huey
+1- Run the consumer
 ```bash
-sudo apt-get install redis-server
-```
-OR on Mac
-```bash
-brew install redis
-```
-2- Run the server
-```bash
-redis-server
-```
-3- Run Celery
-```bash
-celery -A backend worker -l info
+python manage.py run_huey
 ```
 
 

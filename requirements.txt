@@ -3,13 +3,10 @@ factory_boy
 djangorestframework
 django-cors-headers
 django_extensions
+huey
 pandas
 rapidfuzz
 thefuzz
-# transformers
-# torch
-celery
-redis
 gunicorn
 whitenoise
 dj_database_url

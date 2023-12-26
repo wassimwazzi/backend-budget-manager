@@ -1,2 +1,3 @@
 web: gunicorn backend.wsgi
-release: python manage.py migrate
+worker: python manage.py run_huey
+release: python manage.py migrate && python manage.py run_huey

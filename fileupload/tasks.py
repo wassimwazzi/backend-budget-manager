@@ -1,4 +1,4 @@
-from celery import shared_task
+from huey.contrib.djhuey import db_task
 from transaction.models import Transaction
 from category.models import Category
 from .models import FileUpload, Status
@@ -142,8 +142,7 @@ def create_transactions(df, instance, categories):
         return str(e)
 
 
-# FIXME: Uncomment to add celery task back
-# @shared_task
+@db_task()
 def process_file(fileupload_id):
     """
     Process file after upload
