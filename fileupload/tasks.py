@@ -58,7 +58,7 @@ def sanitize_df(df, categories):
     try:
         df["date"] = pd.to_datetime(df["date"], format="mixed", dayfirst=False).dt.date
     except ValueError as e:
-        print(e)
+        logging.error(e)
         error_msg += "Invalid date format: must be YYYY-MM-DD\n"
         return error_msg, df
 

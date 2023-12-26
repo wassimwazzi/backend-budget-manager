@@ -33,6 +33,16 @@ class BudgetTestCase(TestCase):
                 user=budget.user,
             )
 
+    def test_cannot_use_category_from_other_user(self):
+        """
+        Test cannot use category from other user
+        """
+        user = UserFactory()
+        other_user = UserFactory()
+        category = CategoryFactory(user=other_user)
+        with self.assertRaises(django.db.utils.IntegrityError):
+            BudgetFactory(category=category, user=user)
+
 
 class BudgetSummaryTestCase(TestCase):
     """
