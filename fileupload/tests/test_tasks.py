@@ -1,5 +1,4 @@
 from django.test import TestCase
-from category.tests.factories import CategoryFactory
 from category.models import Category
 from transaction.models import Transaction
 from users.user_factory import UserFactory
@@ -175,3 +174,42 @@ class TestProcessFile(TestCase):
         self.assertEqual(self.file.status, Status.COMPLETED)
         self.assertEqual(Transaction.objects.count(), 3)
         self.assertEqual(Transaction.objects.get(code="code1").amount, 1000)
+
+    def test_adds_error_message_to_file_when_sanitize_df_fails(self):
+        with mock.patch(
+            "builtins.open", mock.mock_open(read_data=self.file_contents)
+        ), mock.patch(
+            "fileupload.tasks.sanitize_df", return_value=("Invalid date", None)
+        ):
+            process_file(self.file.id)
+            self.file.refresh_from_db()
+        self.assertEqual(self.file.status, Status.FAILED)
+        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertIn("Invalid date", self.file.message)
+
+    def test_adds_error_message_to_file_when_create_transactions_fails(self):
+        with mock.patch(
+            "builtins.open", mock.mock_open(read_data=self.file_contents)
+        ), mock.patch(
+            "fileupload.tasks.create_transactions", return_value="Error creating transactions"
+        ):
+            process_file(self.file.id)
+            self.file.refresh_from_db()
+        self.assertEqual(self.file.status, Status.FAILED)
+        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertIn("Error creating transactions", self.file.message)
+
+    def test_adds_generic_error_message_when_exception(self):
+        with mock.patch(
+            "builtins.open", mock.mock_open(read_data=self.file_contents)
+        ), mock.patch(
+            "fileupload.tasks.sanitize_df", side_effect=Exception("Something went wrong")
+        ), mock.patch(
+            "logging.error", return_value=None
+        ) as mock_logging:
+            process_file(self.file.id)
+            self.file.refresh_from_db()
+        self.assertEqual(self.file.status, Status.FAILED)
+        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertIn("Error processing file", self.file.message)
+        mock_logging.assert_called_once()

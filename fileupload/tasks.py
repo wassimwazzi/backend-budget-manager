@@ -8,6 +8,7 @@ from datetime import datetime
 import pandas as pd
 from inference.inference import infer_categories
 import math
+import logging
 
 
 def sanitize_df(df, categories):
@@ -175,7 +176,7 @@ def process_file(fileupload_id):
     except Exception:
         import traceback
 
-        traceback.print_exc()
+        logging.error(traceback.format_exc())
 
         instance.status = Status.FAILED
         instance.message = "Error processing file"
