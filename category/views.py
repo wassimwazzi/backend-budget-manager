@@ -29,3 +29,8 @@ class CategoryView(QuerysetMixin, viewsets.ModelViewSet):
         page = self.paginate_queryset(queryset)
         serializer = CategorySerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
+
+    def perform_destroy(self, instance):
+        if instance.is_default:
+            raise serializers.ValidationError("This category cannot be deleted")
+        instance.delete()

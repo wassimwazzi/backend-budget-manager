@@ -84,3 +84,14 @@ class TestCategoryView(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         category = Category.objects.get(id=response.data["id"])
         self.assertEqual(category.user, self.user)
+
+    def test_category_api_cannot_delete_default(self):
+        category = CategoryFactory(user=self.user, is_default=True)
+        response = self.client.delete(f"{self.url}{category.id}/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data[0], "This category cannot be deleted")
+
+    def test_category_api_delete(self):
+        response = self.client.delete(f"{self.url}{self.category.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Category.objects.count(), 0)
