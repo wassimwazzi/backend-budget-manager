@@ -1,3 +1,4 @@
+import calendar
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -141,17 +142,64 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         # Formula: average_spend = total_spend / number_of_months
         queryset = self.get_queryset()
         unique_months = queryset.dates("date", "month")
-        totals = queryset.values("category__income").annotate(
-            total_amount=models.Sum("amount"), count=models.Count("id")
-        ).order_by("-category__income")
+        totals = (
+            queryset.values("category__income")
+            .annotate(total_amount=models.Sum("amount"), count=models.Count("id"))
+            .order_by("-category__income")
+        )
         # NOTE: Use count if needed lateravg_income = (
         total_income = totals.filter(category__income=True).first()
         total_spend = totals.filter(category__income=False).first()
         response = {
             "monthly_average": {
-                "income": total_income["total_amount"] / len(unique_months) if total_income else 0,
-                "spend": total_spend["total_amount"] / len(unique_months) if total_spend else 0,
+                "income": total_income["total_amount"] / len(unique_months)
+                if total_income
+                else 0,
+                "spend": total_spend["total_amount"] / len(unique_months)
+                if total_spend
+                else 0,
             }
         }
+
+        month = request.query_params.get("month")
+        if month:
+            # show total spend and income for the month, as well as last month
+            try:
+                month = timezone.datetime.strptime(month, "%Y-%m").date()
+            except ValueError as e:
+                raise serializers.ValidationError(
+                    f"Invalid month format: {month}, must be YYYY-MM"
+                ) from e
+            month_start = month.replace(day=1)
+            month_end = month.replace(
+                day=calendar.monthrange(month.year, month.month)[1]
+            )
+            last_month_start = month_start - timezone.timedelta(days=1)
+            last_month_start = last_month_start.replace(day=1)
+            last_month_end = month_start - timezone.timedelta(days=1)
+            this_month_totals = (
+                queryset.filter(date__range=(month_start, month_end))
+                .values("category__income")
+                .annotate(total_amount=models.Sum("amount"))
+                .order_by("-category__income")
+            )
+            last_month_totals = (
+                queryset.filter(date__range=(last_month_start, last_month_end))
+                .values("category__income")
+                .annotate(total_amount=models.Sum("amount"))
+                .order_by("-category__income")
+            )
+            this_month_income = this_month_totals.filter(category__income=True).first()
+            this_month_spend = this_month_totals.filter(category__income=False).first()
+            response["this_month"] = {
+                "income": this_month_income["total_amount"] if this_month_income else 0,
+                "spend": this_month_spend["total_amount"] if this_month_spend else 0,
+            }
+            last_month_income = last_month_totals.filter(category__income=True).first()
+            last_month_spend = last_month_totals.filter(category__income=False).first()
+            response["last_month"] = {
+                "income": last_month_income["total_amount"] if last_month_income else 0,
+                "spend": last_month_spend["total_amount"] if last_month_spend else 0,
+            }
 
         return Response(response, status=200)
