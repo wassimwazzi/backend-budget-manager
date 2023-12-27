@@ -363,7 +363,7 @@ class TestSummarize(TestCase):
         self.user = UserFactory()
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
-        self.url = "/api/transactions/summarize/"
+        self.url = "/api/transactions/summary/"
 
     def test_average_spend_by_month(self):
         TransactionFactory(

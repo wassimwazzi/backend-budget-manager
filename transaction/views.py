@@ -136,7 +136,7 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         return Response(response_data, status=200)
 
     @action(detail=False, methods=["get"])
-    def summarize(self, request):
+    def summary(self, request):
         # Over all transactions history, get average spend and income by month
         # Formula: average_spend = total_spend / number_of_months
         queryset = self.get_queryset()
