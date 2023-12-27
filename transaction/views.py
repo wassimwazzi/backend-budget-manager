@@ -2,7 +2,8 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 import rest_framework.serializers as serializers
-from django.db.models import Sum, F
+import django.db.models as models
+import django.db.models.functions as functions
 from .serializers import TransactionSerializer
 from .models import Transaction
 from category.models import Category
@@ -72,7 +73,7 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
             spend_by_category = (
                 queryset.filter(category__income=False)
                 .values("category__category", "date__year", "date__month")
-                .annotate(total=Sum("amount"))
+                .annotate(total=models.Sum("amount"))
                 .order_by("-date__year", "-date__month")
             )
             response_data = [
@@ -88,9 +89,9 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         spend_by_category = (
             queryset.filter(category__income=False)
             .values("category__category")
-            .annotate(total=Sum("amount"))
+            .annotate(total=models.Sum("amount"))
             .values("category__category", "total")
-            .annotate(category=F("category__category"))
+            .annotate(category=models.F("category__category"))
             .values("category", "total")
             .order_by("-total")
         )
@@ -103,14 +104,14 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         spend_by_month = (
             queryset.filter(category__income=False)
             .values("date__year", "date__month")
-            .annotate(total=Sum("amount"))
+            .annotate(total=models.Sum("amount"))
             .order_by("-date__year", "-date__month")
         )
 
         income_by_month = (
             queryset.filter(category__income=True)
             .values("date__year", "date__month")
-            .annotate(total=Sum("amount"))
+            .annotate(total=models.Sum("amount"))
             .order_by("-date__year", "-date__month")
         )
 
@@ -133,3 +134,24 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         ]
 
         return Response(response_data, status=200)
+
+    @action(detail=False, methods=["get"])
+    def summarize(self, request):
+        # Over all transactions history, get average spend and income by month
+        # Formula: average_spend = total_spend / number_of_months
+        queryset = self.get_queryset()
+        unique_months = queryset.dates("date", "month")
+        totals = queryset.values("category__income").annotate(
+            total_amount=models.Sum("amount"), count=models.Count("id")
+        ).order_by("-category__income")
+        # NOTE: Use count if needed lateravg_income = (
+        total_income = totals.filter(category__income=True).first()
+        total_spend = totals.filter(category__income=False).first()
+        response = {
+            "monthly_average": {
+                "income": total_income["total_amount"] / len(unique_months) if total_income else 0,
+                "spend": total_spend["total_amount"] / len(unique_months) if total_spend else 0,
+            }
+        }
+
+        return Response(response, status=200)
