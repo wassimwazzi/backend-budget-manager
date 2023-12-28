@@ -1,8 +1,41 @@
 from rest_framework import serializers
+from django.db import models
+
+
+def find_related_field(model, field_name, visited_models=None, depth=0, link_name=""):
+    # Initialize the set of visited models to avoid infinite loops
+    if visited_models is None:
+        visited_models = set()
+
+    # Add the current model to the set of visited models
+    visited_models.add(model)
+
+    # Iterate through the model's fields and relationships
+    for field in model._meta.get_fields():
+        # Check if the field is a ForeignKey or OneToOneField
+        # Check if the related field's name matches the given field_name
+        if field.name == field_name:
+            return True, depth, f"{link_name}{field.name}"
+        if isinstance(field, (models.ForeignKey, models.OneToOneField)):
+            # Check if the related model has already been visited
+            if field.related_model not in visited_models:
+                # Recursively check the related model with increased depth
+                result, related_depth, link_name = find_related_field(
+                    field.related_model,
+                    field_name,
+                    visited_models,
+                    depth + 1,
+                    f"{link_name}{field.name}__",
+                )
+                if result:
+                    return result, related_depth, link_name
+
+    # If no matching field is found, return False and depth as -1
+    return False, -1, ""
 
 
 class QuerysetMixin:
-    def get_filtered_queryet(self, queryset):
+    def get_filtered_queryet(self, queryset, filter_callback=None):
         """
         Filters and sort the queryset based on query string parameters
         """
@@ -24,9 +57,13 @@ class QuerysetMixin:
         for filter_field, filter_value in zip(filter_fields, filter_values):
             if (
                 filter_field == "category" and model_class.__name__ != "Category"
-            ):  # FIXME
+            ):  # FIXME: front-end sends category instead of category__category. Fix is actually in front-end
                 filter_field = "category__category"
-            filters[f"{filter_field}__icontains"] = filter_value
+            if filter_callback:
+                filter_field_query = filter_callback(filter_field)
+            else:
+                filter_field_query = f"{filter_field}__icontains"
+            filters[filter_field_query] = filter_value
 
         queryset = queryset.filter(**filters)
 

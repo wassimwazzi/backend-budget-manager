@@ -136,6 +136,25 @@ class TestBudgetView(TestCase):
         )
         self.assertEqual(response.data["category"]["id"], updated_data["category"])
 
+    def test_budget_api_update_with_same_date_and_category(self):
+        budget = BudgetFactory(user=self.user)
+        old_amount = budget.amount
+        updated_data = {
+            "amount": budget.amount + 1,
+            "currency": self.currency.code,
+            "start_date": budget.start_date.strftime("%Y-%m"),
+            "category": budget.category.id,
+        }
+        response = self.client.put(
+            self.url + f"{budget.id}/", data=updated_data, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Budget.objects.count(), 1)
+        budget.refresh_from_db()
+        self.assertEqual(budget.amount, old_amount + 1)
+        self.assertEqual(budget.currency.code, updated_data["currency"])
+        self.assertEqual(budget.category.id, updated_data["category"])
+
     def test_partial_budget_update(self):
         budget = BudgetFactory(user=self.user)
         old_data = BudgetSerializer(budget).data
