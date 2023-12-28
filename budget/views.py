@@ -19,7 +19,15 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
         """
         user = self.request.user
         queryset = Budget.objects.filter(user=user)
-        return self.get_filtered_queryet(queryset)
+
+        def callback(field):
+            # if field == "category":
+            #     return "category__category"
+            if field == "start_date":
+                return "start_date__lte"
+            return f"{field}__icontains"
+
+        return self.get_filtered_queryet(queryset, callback)
 
     def perform_create_or_update(self, serializer):
         user = self.request.user
