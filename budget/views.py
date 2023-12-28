@@ -29,7 +29,7 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
 
         return self.get_filtered_queryet(queryset, callback)
 
-    def perform_create_or_update(self, serializer):
+    def perform_create_or_update(self, serializer, is_create=False):
         user = self.request.user
         validated_data = serializer.validated_data
 
@@ -42,7 +42,7 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
                 raise serializers.ValidationError(
                     "Category not found or does not belong to the user"
                 ) from e
-            if Budget.objects.filter(
+            if is_create and Budget.objects.filter(
                 category=category, user=user, start_date=start_date
             ).exists():
                 raise serializers.ValidationError(
@@ -53,7 +53,7 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
             serializer.save()
 
     def perform_create(self, serializer):
-        self.perform_create_or_update(serializer)
+        self.perform_create_or_update(serializer, is_create=True)
 
     def perform_update(self, serializer):
         self.perform_create_or_update(serializer)
