@@ -171,7 +171,7 @@ class GoalContribution(models.Model):
             django.core.validators.MaxValueValidator(100),
         ]
     )
-    goal = models.ForeignKey(Goal, on_delete=models.CASCADE)
+    goal = models.ForeignKey(Goal, on_delete=models.CASCADE, related_name="contributions")
 
     def __str__(self):
         return f"{self.goal}: {self.amount} - {self.start_date}"
