@@ -1,4 +1,4 @@
-from datetime import date
+import datetime
 import django.db.utils
 from django.test import TestCase
 from users.user_factory import UserFactory
@@ -13,7 +13,7 @@ class TestGoalModel(TestCase):
 
     def setUp(self):
         self.user = UserFactory()
-        self.today = date.today()
+        self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
 
     def test_goal_amount_must_be_positive(self):
@@ -56,7 +56,7 @@ class TestGoalModel(TestCase):
                 user=self.user,
             )
 
-    def test_goal_start_date_is_set_to_today_if_non_given(self):
+    def test_goal_start_date_default_if_non_given(self):
         """
         Test goal start date is set to today
         """
@@ -67,9 +67,9 @@ class TestGoalModel(TestCase):
             description="Test Goal",
             user=self.user,
         )
-        self.assertEqual(goal.start_date, date.today())
+        self.assertEqual(goal.start_date, datetime.date.today().replace(day=1))
 
-    def test_goal_start_date_is_set_to_given_date(self):
+    def test_goal_start_date_is_set_to_first_day_of_month(self):
         """
         Test goal start date is set to given date
         """
@@ -78,10 +78,10 @@ class TestGoalModel(TestCase):
             expected_completion_date=self.next_year,
             type="SAVINGS",
             description="Test Goal",
-            start_date=date(2021, 1, 1),
+            start_date=datetime.date(2021, 1, 15),
             user=self.user,
         )
-        self.assertEqual(goal.start_date, date(2021, 1, 1))
+        self.assertEqual(goal.start_date, datetime.date(2021, 1, 1))
 
     def test_expected_completion_date_after_start_date(self):
         """
@@ -90,11 +90,11 @@ class TestGoalModel(TestCase):
         with self.assertRaises(django.core.exceptions.ValidationError):
             GoalFactory(
                 amount=1000,
-                expected_completion_date=date(2020, 1, 1),
+                expected_completion_date=datetime.date(2020, 1, 1),
                 type="SAVINGS",
                 description="Test Goal",
                 user=self.user,
-                start_date=date(2021, 1, 1),
+                start_date=datetime.date(2021, 1, 1),
             )
 
     def test_expected_completion_date_in_future(self):
@@ -104,7 +104,7 @@ class TestGoalModel(TestCase):
         with self.assertRaises(django.core.exceptions.ValidationError):
             GoalFactory(
                 amount=1000,
-                expected_completion_date=date(2020, 1, 1),
+                expected_completion_date=datetime.date(2020, 1, 1),
                 type="SAVINGS",
                 description="Test Goal",
                 user=self.user,
@@ -150,13 +150,103 @@ class TestGoalModel(TestCase):
             user=self.user,
         )
         self.assertIsNone(goal.reccuring_frequency)
-        self.assertFalse(goal.recurring)
+        self.assertEqual(goal.recurring, "NON_RECURRING")
+
+    def test_actual_completion_date_is_set_to_today_when_status_is_completed(self):
+        """
+        Test actual completion date is set to today when status is completed
+        """
+        goal = GoalFactory(
+            amount=1000,
+            expected_completion_date=self.next_year,
+            type="SAVINGS",
+            description="Test Goal",
+            user=self.user,
+            status="COMPLETED",
+        )
+        self.assertEqual(goal.actual_completion_date, datetime.date.today())
+
+    def test_actual_completion_date_is_set_to_none_when_status_is_not_completed(self):
+        """
+        Test actual completion date is set to none when status is not completed
+        """
+        goal = GoalFactory(
+            amount=1000,
+            expected_completion_date=self.next_year,
+            type="SAVINGS",
+            description="Test Goal",
+            user=self.user,
+            status="PENDING",
+        )
+        self.assertIsNone(goal.actual_completion_date)
+
+    def test_cannot_set_actual_completion_date_if_status_is_not_completed(self):
+        """
+        Test cannot set actual completion date if status is not completed
+        """
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalFactory(
+                amount=1000,
+                expected_completion_date=self.next_year,
+                type="SAVINGS",
+                description="Test Goal",
+                user=self.user,
+                status="PENDING",
+                actual_completion_date=datetime.date.today(),
+            )
+
+    def test_manually_setting_actual_completion_date(self):
+        """
+        Test manually setting actual completion date
+        """
+        actual_completion_date = self.next_year - datetime.timedelta(days=30)
+        goal = GoalFactory(
+            amount=1000,
+            expected_completion_date=self.next_year,
+            type="SAVINGS",
+            description="Test Goal",
+            user=self.user,
+            status="COMPLETED",
+            actual_completion_date=actual_completion_date,
+        )
+        self.assertEqual(goal.actual_completion_date, actual_completion_date)
+
+    def test_actual_completion_date_must_be_after_start_date(self):
+        """
+        Test actual completion date must be after start date
+        """
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalFactory(
+                amount=1000,
+                expected_completion_date=self.next_year,
+                type="SAVINGS",
+                description="Test Goal",
+                user=self.user,
+                status="COMPLETED",
+                actual_completion_date=datetime.date(2020, 1, 1),
+            )
+
+    def test_actual_completion_date_can_be_after_expected_completion_date(self):
+        """
+        Test actual completion date can be after expected completion date
+        """
+        actual_completion_date = self.next_year + datetime.timedelta(days=30)
+        goal = GoalFactory(
+            amount=1000,
+            expected_completion_date=self.next_year,
+            type="SAVINGS",
+            description="Test Goal",
+            user=self.user,
+            status="COMPLETED",
+            actual_completion_date=actual_completion_date,
+        )
+        self.assertEqual(goal.actual_completion_date, actual_completion_date)
 
 
 class TestGoalContributionModel(TestCase):
     def setUp(self):
         self.user = UserFactory()
-        self.today = date.today()
+        self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
 
     def test_start_date_is_set_to_first_day_of_month(self):
@@ -166,7 +256,6 @@ class TestGoalContributionModel(TestCase):
         goal_contribution = GoalContributionFactory(
             amount=1000,
             start_date=self.today,
-            goal=GoalFactory(),
         )
         self.assertEqual(goal_contribution.start_date, self.today.replace(day=1))
 
@@ -176,7 +265,6 @@ class TestGoalContributionModel(TestCase):
         """
         goal_contribution = GoalContributionFactory(
             amount=1000,
-            goal=GoalFactory(),
         )
         self.assertEqual(goal_contribution.start_date, self.today.replace(day=1))
 
@@ -187,7 +275,6 @@ class TestGoalContributionModel(TestCase):
         goal_contribution = GoalContributionFactory(
             amount=1000,
             start_date=self.today,
-            goal=GoalFactory(),
         )
         self.assertEqual(goal_contribution.end_date, self.today.replace(day=31))
 
@@ -199,7 +286,6 @@ class TestGoalContributionModel(TestCase):
             amount=1000,
             start_date=self.today,
             end_date=self.next_year,
-            goal=GoalFactory(),
         )
         self.assertEqual(goal_contribution.end_date, self.today.replace(day=31))
 
@@ -214,3 +300,142 @@ class TestGoalContributionModel(TestCase):
         self.assertEqual(goal.goalcontribution_set.count(), 3)
         goal.delete()
         self.assertEqual(GoalContribution.objects.count(), 0)
+
+    def test_percentage_must_be_between_0_and_100(self):
+        """
+        Test percentage must be between 0 and 100
+        """
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                start_date=self.today,
+                percentage=101,
+            )
+
+    def test_percentage_must_be_positive(self):
+        """
+        Test percentage must be positive
+        """
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                start_date=self.today,
+                percentage=-1,
+            )
+
+    def test_cannot_have_two_overlapping_contributions_to_the_same_goal(self):
+        """
+        Test cannot have two overlapping contributions to the same goal
+        """
+        goal = GoalFactory()
+        GoalContributionFactory(
+            amount=1000,
+            start_date=self.today,
+            goal=goal,
+            percentage=10,  # so percentage validation doesn't fail
+        )
+        with self.assertRaises(django.db.utils.IntegrityError):
+            GoalContributionFactory(
+                amount=1000,
+                start_date=self.today,
+                goal=goal,
+                percentage=10,
+            )
+
+    def test_percentages_over_a_month_cannot_sum_to_more_than_100(self):
+        """
+        Test percentages cannot sum to more than 100
+        """
+        goal1 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        goal2 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        GoalContributionFactory(
+            amount=1000,
+            start_date=self.today,
+            goal=goal1,
+            percentage=50,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                start_date=self.today,
+                goal=goal2,
+                percentage=51,
+            )
+
+    def test_percentages_over_a_month_can_over_100_for_different_users(self):
+        """
+        Test percentages can sum to more than 100 for different users
+        """
+        user2 = UserFactory()
+        goal1 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        goal2 = GoalFactory(
+            start_date=self.today, expected_completion_date=self.next_year, user=user2
+        )
+        GoalContributionFactory(
+            amount=1000,
+            start_date=self.today,
+            goal=goal1,
+            percentage=50,
+        )
+        GoalContributionFactory(
+            amount=1000,
+            start_date=self.today,
+            goal=goal2,
+            percentage=51,
+        )
+
+    def test_percentages_can_sum_over_100_if_they_dont_overlap(self):
+        """
+        Test percentages can sum to more than 100 if they don't overlap
+        """
+        goal1 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        goal2 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        GoalContributionFactory(
+            amount=1000,
+            start_date=self.today,
+            goal=goal1,
+            percentage=50,
+        )
+        GoalContributionFactory(
+            amount=1000,
+            start_date=self.today + datetime.timedelta(days=60),
+            goal=goal2,
+            percentage=51,
+        )
+
+    def test_cannot_create_contribution_for_completed_goal(self):
+        """
+        Test cannot create contribution for completed goal
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+            status="COMPLETED",
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                start_date=self.today,
+                goal=goal,
+            )
