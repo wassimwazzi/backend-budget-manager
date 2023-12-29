@@ -41,7 +41,10 @@ class TestGoalView(TestCase):
             "status": "IN_PROGRESS",
             "start_date": "2020-02",
             "recurring": "NON_RECURRING",
-            "user": self.user.id,
+            "contributions": [
+                {"start_date": "2020-02", "percentage": 100},
+                {"start_date": "2020-03", "percentage": 50},
+            ],
         }
         response = self.client.post(self.url, goal_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -148,6 +151,22 @@ class TestGoalView(TestCase):
         self.assertFalse(Goal.objects.exists())
         self.assertFalse(GoalContribution.objects.exists())
 
+    def test_create_but_contributions_missing_start_date(self):
+        goal_data = {
+            "amount": "10000",
+            "expected_completion_date": self.next_year.strftime("%Y-%m"),
+            "type": "SAVINGS",
+            "start_date": self.today.strftime("%Y-%m"),
+            "description": "API test goal",
+            "contributions": [
+                {"start_date": self.next_year.strftime("%Y-%m"), "percentage": 50},
+            ],
+        }
+        response = self.client.post(self.url, goal_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Goal.objects.exists())
+        self.assertFalse(GoalContribution.objects.exists())
+
     def test_goal_api_patch(self):
         goal = GoalFactory(user=self.user)
         goal_data = {
@@ -168,6 +187,27 @@ class TestGoalView(TestCase):
         self.assertEqual(goal.description, goal_data["description"])
         self.assertEqual(goal.status, goal_data["status"])
         self.assertEqual(goal.recurring, goal_data["recurring"])
+
+    def test_patch_cannot_update_contributions(self):
+        goal = GoalFactory(user=self.user)
+        GoalContributionFactory(goal=goal)
+        goal_data = {
+            "amount": "75",
+            "expected_completion_date": self.next_year.strftime("%Y-%m"),
+            "type": "SAVINGS",
+            "description": "test goal",
+            "status": "IN_PROGRESS",
+            "start_date": "2020-02",
+            "recurring": "NON_RECURRING",
+            "user": self.user.id,
+            "contributions": [
+                {"start_date": "2020-02", "percentage": 100},
+                {"start_date": "2020-03", "percentage": 50},
+            ],
+        }
+        response = self.client.patch(f"{self.url}{goal.id}/", goal_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        goal.refresh_from_db()
 
     def test_goal_api_update_raises_405(self):
         goal = GoalFactory(user=self.user)
