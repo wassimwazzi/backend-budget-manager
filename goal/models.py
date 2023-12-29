@@ -4,6 +4,8 @@ Goal Model
 from django.db import models
 from django.contrib.auth.models import User
 import django.core.exceptions
+from transaction.models import Transaction
+import decimal
 import calendar
 import datetime
 
@@ -201,6 +203,29 @@ class GoalContribution(models.Model):
         self.end_date = self.start_date.replace(day=end_of_month)
         self.validate_percentage()  # call after setting end_date and start_date
         super().save(*args, **kwargs)
+
+    @property
+    def contribution(self):
+        """
+        Calculate how much was contributed to the goal for this contribution
+        """
+        transactions_by_type = (
+            Transaction.objects.filter(
+                user=self.goal.user,
+                date__gte=self.start_date,
+                date__lte=self.end_date,
+            ).values('category__income')
+            .annotate(total=models.Sum('amount'))
+        )# returns 2 rows, one for income and one for expenses
+        net_saved = 0
+        for i in transactions_by_type:
+            if i['category__income']:
+                net_saved += i['total']
+            else:
+                net_saved -= i['total']
+        return net_saved * decimal.Decimal(self.percentage / 100)
+
+
 
     class Meta:
         """

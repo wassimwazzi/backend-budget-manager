@@ -4,6 +4,8 @@ from django.test import TestCase
 from users.user_factory import UserFactory
 from .factories import GoalFactory, GoalContributionFactory
 from ..models import GoalContribution
+from transaction.tests.factories import TransactionFactory
+from transaction.tests.factories import CategoryFactory
 
 
 class TestGoalModel(TestCase):
@@ -439,3 +441,140 @@ class TestGoalContributionModel(TestCase):
                 start_date=self.today,
                 goal=goal,
             )
+
+
+class TestCalculateContributionAmount(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+
+    def test_happy_path(self):
+        """
+        Test happy path
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            start_date=self.today,
+            goal=goal,
+            percentage=100,
+        )
+        income = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        expense = TransactionFactory(
+            user=self.user,
+            amount=300,
+            date=self.today,
+            category=CategoryFactory(income=False, user=self.user),
+        )
+        self.assertEqual(contribution.contribution, 700)
+
+    def test_applies_percentage(self):
+        """
+        Test applies percentage
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            start_date=self.today,
+            goal=goal,
+            percentage=50,
+        )
+        income = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        expense = TransactionFactory(
+            user=self.user,
+            amount=300,
+            date=self.today,
+            category=CategoryFactory(income=False, user=self.user),
+        )
+        self.assertEqual(contribution.contribution, 350)
+
+    def test_sums_transactions(self):
+        """
+        Test sums transactions
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            start_date=self.today,
+            goal=goal,
+            percentage=100,
+        )
+        income = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        income2 = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        expense = TransactionFactory(
+            user=self.user,
+            amount=300,
+            date=self.today,
+            category=CategoryFactory(income=False, user=self.user),
+        )
+        expense2 = TransactionFactory(
+            user=self.user,
+            amount=300,
+            date=self.today,
+            category=CategoryFactory(income=False, user=self.user),
+        )
+        self.assertEqual(contribution.contribution, 1400)
+
+    def test_does_not_sum_transactions_outside_of_date_range(self):
+        """
+        Test does not sum transactions outside of date range
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            start_date=self.today,
+            goal=goal,
+            percentage=100,
+        )
+        income = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        outside_range = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=contribution.start_date - datetime.timedelta(days=1),
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        expense = TransactionFactory(
+            user=self.user,
+            amount=300,
+            date=self.today,
+            category=CategoryFactory(income=False, user=self.user),
+        )
+        self.assertEqual(contribution.contribution, 700)
