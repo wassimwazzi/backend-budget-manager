@@ -245,6 +245,78 @@ class TestGoalModel(TestCase):
         self.assertEqual(goal.actual_completion_date, actual_completion_date)
 
 
+class TestGoalProgress(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+        self.goal = GoalFactory(
+            amount=1000, expected_completion_date=self.next_year, user=self.user
+        )
+
+    def test_progress_is_0_if_no_contributions(self):
+        """
+        Test progress is 0 if no contributions
+        """
+        self.assertEqual(self.goal.get_progress(), 0)
+
+    def test_sums_up_contributions(self):
+        """
+        Test sums up contributions
+        """
+        GoalContributionFactory(
+            amount=500,
+            goal=self.goal,
+            start_date=self.today,
+            percentage=100,
+        )
+        GoalContributionFactory(
+            amount=500,
+            goal=self.goal,
+            start_date=self.today + datetime.timedelta(days=32),
+            percentage=100,
+        )
+        self.assertEqual(self.goal.get_progress(), 1000)
+
+    def test_progress_as_percentage(self):
+        """
+        Test progress as percentage
+        """
+        GoalContributionFactory(
+            amount=self.goal.amount / 2,
+            goal=self.goal,
+            start_date=self.today,
+            percentage=100,
+        )
+        GoalContributionFactory(
+            amount=self.goal.amount / 2,
+            goal=self.goal,
+            start_date=self.today + datetime.timedelta(days=32),
+            percentage=100,
+        )
+        self.assertEqual(self.goal.get_progress(percentage=True), 100)
+
+    def test_percentage_over_100(self):
+        """
+        Test percentage over 100
+        """
+        # FIXME: contributions should max out at 100% of goal
+        GoalContributionFactory(
+            amount=self.goal.amount,
+            goal=self.goal,
+            start_date=self.today,
+            percentage=100,
+        )
+        GoalContributionFactory(
+            amount=self.goal.amount,
+            goal=self.goal,
+            start_date=self.today + datetime.timedelta(days=32),
+            percentage=100,
+        )
+        self.assertEqual(self.goal.get_progress(percentage=True), 200)
+
+
+
 class TestGoalContributionModel(TestCase):
     def setUp(self):
         self.user = UserFactory()
