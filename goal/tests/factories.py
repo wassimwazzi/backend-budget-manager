@@ -37,7 +37,7 @@ class GoalContributionFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = GoalContribution
 
-    amount = factory.Faker("pyint")
+    amount = None
     goal = factory.SubFactory(GoalFactory, start_date=datetime.date.today().replace(day=1))
     percentage = factory.fuzzy.FuzzyInteger(0, 100)
 

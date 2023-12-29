@@ -130,6 +130,15 @@ class Goal(models.Model):
         self.full_clean()  # validate model
         super().save(*args, **kwargs)
 
+    @property
+    def progress(self):
+        """
+        Calculate the progress of the goal.
+        For each contribution, calculate the amount contributed to the goal.
+        Then, sum all the contributions.
+        """
+        
+
     class Meta:
         """
         Meta class for goal
@@ -146,8 +155,8 @@ class GoalContribution(models.Model):
 
     id = models.AutoField(primary_key=True)
     amount = models.DecimalField(
-        max_digits=10, decimal_places=2
-    )  # calculated automatically at the end of the month
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )  # Cache result at the end of the month
     start_date = models.DateField()
     end_date = models.DateField(
         null=True, blank=True
@@ -209,6 +218,8 @@ class GoalContribution(models.Model):
         """
         Calculate how much was contributed to the goal for this contribution
         """
+        if self.amount:
+            return self.amount
         transactions_by_type = (
             Transaction.objects.filter(
                 user=self.goal.user,

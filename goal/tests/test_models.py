@@ -578,3 +578,53 @@ class TestCalculateContributionAmount(TestCase):
             category=CategoryFactory(income=False, user=self.user),
         )
         self.assertEqual(contribution.contribution, 700)
+
+    def test_does_not_sum_transactions_for_other_users(self):
+        """
+        Test does not sum transactions for other users
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            start_date=self.today,
+            goal=goal,
+            percentage=100,
+        )
+        other_user = UserFactory()
+        other_user_transaction = TransactionFactory(
+            user=other_user,
+            date=self.today,
+        )
+        self.assertEqual(contribution.contribution, 0)
+
+    def test_uses_amount_if_it_exists(self):
+        """
+        Test uses amount if it exists
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            start_date=self.today,
+            goal=goal,
+            percentage=100,
+            amount=1000,
+        )
+        income = TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        expense = TransactionFactory(
+            user=self.user,
+            amount=300,
+            date=self.today,
+            category=CategoryFactory(income=False, user=self.user),
+        )
+        self.assertEqual(contribution.contribution, 1000)
