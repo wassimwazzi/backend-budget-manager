@@ -102,7 +102,10 @@ class Goal(models.Model):
         """
         Check that recurring goals have a frequency
         """
-        if self.recurring != GoalRecurranceType.NON_RECURRING and not self.reccuring_frequency:
+        if (
+            self.recurring != GoalRecurranceType.NON_RECURRING
+            and not self.reccuring_frequency
+        ):
             raise django.core.exceptions.ValidationError(
                 "Recurring goals must have a frequency."
             )
@@ -141,7 +144,6 @@ class Goal(models.Model):
         if percentage:
             return total_contribution / self.amount * 100
         return total_contribution
-        
 
     class Meta:
         """
@@ -171,7 +173,9 @@ class GoalContribution(models.Model):
             django.core.validators.MaxValueValidator(100),
         ]
     )
-    goal = models.ForeignKey(Goal, on_delete=models.CASCADE, related_name="contributions")
+    goal = models.ForeignKey(
+        Goal, on_delete=models.CASCADE, related_name="contributions"
+    )
 
     def __str__(self):
         return f"{self.goal}: {self.amount} - {self.start_date}"
@@ -229,18 +233,17 @@ class GoalContribution(models.Model):
                 user=self.goal.user,
                 date__gte=self.start_date,
                 date__lte=self.end_date,
-            ).values('category__income')
-            .annotate(total=models.Sum('amount'))
-        )# returns 2 rows, one for income and one for expenses
+            )
+            .values("category__income")
+            .annotate(total=models.Sum("amount"))
+        )  # returns 2 rows, one for income and one for expenses
         net_saved = 0
         for i in transactions_by_type:
-            if i['category__income']:
-                net_saved += i['total']
+            if i["category__income"]:
+                net_saved += i["total"]
             else:
-                net_saved -= i['total']
+                net_saved -= i["total"]
         return net_saved * decimal.Decimal(self.percentage / 100)
-
-
 
     class Meta:
         """
