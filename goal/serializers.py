@@ -37,29 +37,7 @@ class GoalSerializer(serializers.ModelSerializer):
         input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m"
     )
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1)
-    contributions = GoalContributionSerializer(many=True)
-
-    def create(self, validated_data):
-        contributions = validated_data.pop("contributions", [])
-        if not contributions:
-            raise serializers.ValidationError("Contributions are required")
-        contributions_dates = [
-            contribution["start_date"].strftime("%Y-%m")
-            for contribution in contributions
-        ]
-        goal_start_date = validated_data.get("start_date").strftime("%Y-%m")
-        print(contributions_dates)
-        print(goal_start_date)
-        if goal_start_date not in contributions_dates:
-            raise serializers.ValidationError(
-                "Start date must be included in contributions"
-            )
-        goal = Goal.objects.create(**validated_data)
-        created_contributions = {}
-        for contribution in contributions:
-            GoalContribution.objects.create(goal=goal, **contribution)
-            created_contributions[contribution["start_date"]] = True
-        return goal
+    contributions = GoalContributionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Goal
@@ -77,4 +55,4 @@ class GoalSerializer(serializers.ModelSerializer):
             "contributions",
             "user",
         )
-        read_only_fields = ("id", "user")
+        read_only_fields = ("id", "user", "contributions")

@@ -153,6 +153,45 @@ class Goal(models.Model):
         verbose_name_plural = "goals"
 
 
+class ContributionRange(models.Model):
+    """
+    Contribution Range Model
+    """
+
+    id = models.AutoField(primary_key=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.user}: {self.start_date} - {self.end_date}"
+
+    def save(self, *args, **kwargs):
+        """
+        Ranges are unique over the entire period for a user
+        """
+        if (
+            ContributionRange.objects.filter(user=self.user)
+            .filter(
+                models.Q(start_date__lte=self.start_date, end_date__gte=self.start_date)
+                | models.Q(start_date__lte=self.end_date, end_date__gte=self.end_date)
+            )
+            .exclude(id=self.id)
+            .exists()
+        ):
+            raise django.core.exceptions.ValidationError(
+                "Cannot have overlapping contribution ranges."
+            )
+        super().save(*args, **kwargs)
+
+    class Meta:
+        """
+        Meta class for contribution range
+        """
+
+        verbose_name_plural = "contribution ranges"
+
+
 class GoalContribution(models.Model):
     """
     Goal Contribution Model
@@ -163,11 +202,7 @@ class GoalContribution(models.Model):
     amount = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )  # Cache result at the end of the month
-    start_date = models.DateField()
-    end_date = models.DateField(
-        null=True, blank=True
-    )  # auto set to the end of the month
-    percentage = models.IntegerField(
+    percentage = models.PositiveIntegerField(
         validators=[
             django.core.validators.MinValueValidator(0),
             django.core.validators.MaxValueValidator(100),
@@ -175,6 +210,9 @@ class GoalContribution(models.Model):
     )
     goal = models.ForeignKey(
         Goal, on_delete=models.CASCADE, related_name="contributions"
+    )
+    date_range = models.ForeignKey(
+        ContributionRange, on_delete=models.PROTECT, related_name="contributions"
     )
 
     def __str__(self):
@@ -185,9 +223,9 @@ class GoalContribution(models.Model):
         The percentages of ALL user contributions for a given month cannot sum to more than 100
         """
         total_existing_percentage = (
-            GoalContribution.objects.filter(
-                start_date=self.start_date, goal__user=self.goal.user
-            ).aggregate(models.Sum("percentage"))["percentage__sum"]
+            ContributionRange.objects.get(
+                id=self.date_range.id
+            ).contributions.aggregate(models.Sum("percentage"))["percentage__sum"]
             or 0
         )
         if total_existing_percentage + self.percentage > 100:
@@ -195,30 +233,27 @@ class GoalContribution(models.Model):
                 "Percentages cannot sum to more than 100."
             )
 
+    def validate_range(self):
+        """
+        The contribution range must be in the same month as the goal
+        """
+        if self.date_range.start_date < self.goal.start_date:
+            raise django.core.exceptions.ValidationError(
+                "Contribution range cannot be before goal start date."
+            )
+        if self.date_range.end_date > self.goal.expected_completion_date:
+            raise django.core.exceptions.ValidationError(
+                "Contribution range cannot be after goal completion date."
+            )
+
     def save(self, *args, **kwargs):
-        """
-        - Set start date to the first of the month
-        - Set end date to the last day of the month
-        """
         if not self.pk:  # if creating a new contribution
-            # Cannot create a contribution for a completed goal
             if self.goal.status == GoalStatus.COMPLETED:
                 raise django.core.exceptions.ValidationError(
                     "Cannot create a contribution for a completed goal."
                 )
-        self.full_clean()  # validate model
-        if not self.start_date:
-            self.start_date = datetime.date.today()
-        self.start_date = self.start_date.replace(day=1)
-        if self.start_date < self.goal.start_date:
-            raise django.core.exceptions.ValidationError(
-                "Contribution start date cannot be before goal start date."
-            )
-        end_of_month = calendar.monthrange(self.start_date.year, self.start_date.month)[
-            1
-        ]
-        self.end_date = self.start_date.replace(day=end_of_month)
-        self.validate_percentage()  # call after setting end_date and start_date
+        self.validate_range()
+        self.validate_percentage()
         super().save(*args, **kwargs)
 
     @property
@@ -228,11 +263,13 @@ class GoalContribution(models.Model):
         """
         if self.amount:
             return self.amount
+        start_date = self.date_range.start_date
+        end_date = self.date_range.end_date
         transactions_by_type = (
             Transaction.objects.filter(
                 user=self.goal.user,
-                date__gte=self.start_date,
-                date__lte=self.end_date,
+                date__gte=start_date,
+                date__lte=end_date,
             )
             .values("category__income")
             .annotate(total=models.Sum("amount"))
@@ -251,8 +288,3 @@ class GoalContribution(models.Model):
         """
 
         verbose_name_plural = "goal contributions"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["goal", "start_date"], name="unique_goal_contribution"
-            ),
-        ]

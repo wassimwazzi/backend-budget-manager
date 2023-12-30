@@ -2,8 +2,8 @@ import datetime
 import django.db.utils
 from django.test import TestCase
 from users.user_factory import UserFactory
-from .factories import GoalFactory, GoalContributionFactory
-from ..models import GoalContribution
+from .factories import GoalFactory, GoalContributionFactory, ContributionRangeFactory
+from ..models import GoalContribution, ContributionRange
 from transaction.tests.factories import TransactionFactory
 from transaction.tests.factories import CategoryFactory
 
@@ -253,6 +253,10 @@ class TestGoalProgress(TestCase):
         self.goal = GoalFactory(
             amount=1000, expected_completion_date=self.next_year, user=self.user
         )
+        self.goal_midpoint = (
+            self.goal.start_date
+            + (self.goal.expected_completion_date - self.goal.start_date) / 2
+        )
 
     def test_progress_is_0_if_no_contributions(self):
         """
@@ -264,17 +268,27 @@ class TestGoalProgress(TestCase):
         """
         Test sums up contributions
         """
-        GoalContributionFactory(
-            amount=500,
-            goal=self.goal,
-            start_date=self.today,
-            percentage=100,
+        range1 = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal_midpoint,
+            user=self.user,
+        )
+        range2 = ContributionRangeFactory(
+            start_date=self.goal_midpoint + datetime.timedelta(days=1),
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
         )
         GoalContributionFactory(
             amount=500,
             goal=self.goal,
-            start_date=self.today + datetime.timedelta(days=32),
             percentage=100,
+            date_range=range1,
+        )
+        GoalContributionFactory(
+            amount=500,
+            goal=self.goal,
+            percentage=100,
+            date_range=range2,
         )
         self.assertEqual(self.goal.get_progress(), 1000)
 
@@ -282,17 +296,27 @@ class TestGoalProgress(TestCase):
         """
         Test progress as percentage
         """
-        GoalContributionFactory(
-            amount=self.goal.amount / 2,
-            goal=self.goal,
-            start_date=self.today,
-            percentage=100,
+        range1 = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal_midpoint,
+            user=self.user,
+        )
+        range2 = ContributionRangeFactory(
+            start_date=self.goal_midpoint + datetime.timedelta(days=1),
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
         )
         GoalContributionFactory(
             amount=self.goal.amount / 2,
             goal=self.goal,
-            start_date=self.today + datetime.timedelta(days=32),
             percentage=100,
+            date_range=range1,
+        )
+        GoalContributionFactory(
+            amount=self.goal.amount / 2,
+            goal=self.goal,
+            percentage=100,
+            date_range=range2,
         )
         self.assertEqual(self.goal.get_progress(percentage=True), 100)
 
@@ -301,20 +325,29 @@ class TestGoalProgress(TestCase):
         Test percentage over 100
         """
         # FIXME: contributions should max out at 100% of goal
-        GoalContributionFactory(
-            amount=self.goal.amount,
-            goal=self.goal,
-            start_date=self.today,
-            percentage=100,
+        range1 = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal_midpoint,
+            user=self.user,
+        )
+        range2 = ContributionRangeFactory(
+            start_date=self.goal_midpoint + datetime.timedelta(days=1),
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
         )
         GoalContributionFactory(
             amount=self.goal.amount,
             goal=self.goal,
-            start_date=self.today + datetime.timedelta(days=32),
             percentage=100,
+            date_range=range1,
+        )
+        GoalContributionFactory(
+            amount=self.goal.amount,
+            goal=self.goal,
+            percentage=100,
+            date_range=range2,
         )
         self.assertEqual(self.goal.get_progress(percentage=True), 200)
-
 
 
 class TestGoalContributionModel(TestCase):
@@ -323,55 +356,18 @@ class TestGoalContributionModel(TestCase):
         self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
 
-    def test_start_date_is_set_to_first_day_of_month(self):
-        """
-        Test start date is set to first day of month
-        """
-        goal_contribution = GoalContributionFactory(
-            amount=1000,
-            start_date=self.today,
-        )
-        self.assertEqual(goal_contribution.start_date, self.today.replace(day=1))
-
-    def test_start_date_defaults_to_first_day_of_month(self):
-        """
-        Test start date is set to first day of month
-        """
-        goal_contribution = GoalContributionFactory(
-            amount=1000,
-        )
-        self.assertEqual(goal_contribution.start_date, self.today.replace(day=1))
-
-    def test_end_date_is_set_to_last_day_of_month(self):
-        """
-        Test end date is set to last day of month
-        """
-        goal_contribution = GoalContributionFactory(
-            amount=1000,
-            start_date=self.today,
-        )
-        self.assertEqual(goal_contribution.end_date, self.today.replace(day=31))
-
-    def test_end_date_cannot_be_manually_set(self):
-        """
-        Test end date cannot be manually set
-        """
-        goal_contribution = GoalContributionFactory(
-            amount=1000,
-            start_date=self.today,
-            end_date=self.next_year,
-        )
-        self.assertEqual(goal_contribution.end_date, self.today.replace(day=31))
-
     def test_cascade_deletion_of_goal(self):
         """
         Test cascade deletion of goal
         """
         goal = GoalFactory()
-        GoalContributionFactory(goal=goal)
-        GoalContributionFactory(goal=goal)
-        GoalContributionFactory(goal=goal)
-        self.assertEqual(goal.goalcontribution_set.count(), 3)
+        contribution_range = ContributionRangeFactory(
+            user=self.user,
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+        )
+        GoalContributionFactory(goal=goal, date_range=contribution_range)
+        self.assertEqual(goal.contributions.count(), 1)
         goal.delete()
         self.assertEqual(GoalContribution.objects.count(), 0)
 
@@ -382,7 +378,6 @@ class TestGoalContributionModel(TestCase):
         with self.assertRaises(django.core.exceptions.ValidationError):
             GoalContributionFactory(
                 amount=1000,
-                start_date=self.today,
                 percentage=101,
             )
 
@@ -390,33 +385,77 @@ class TestGoalContributionModel(TestCase):
         """
         Test percentage must be positive
         """
-        with self.assertRaises(django.core.exceptions.ValidationError):
-            GoalContributionFactory(
-                amount=1000,
-                start_date=self.today,
-                percentage=-1,
-            )
-
-    def test_cannot_have_two_overlapping_contributions_to_the_same_goal(self):
-        """
-        Test cannot have two overlapping contributions to the same goal
-        """
-        goal = GoalFactory()
-        GoalContributionFactory(
+        goal = GoalFactory(
             amount=1000,
-            start_date=self.today,
-            goal=goal,
-            percentage=10,  # so percentage validation doesn't fail
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
         )
         with self.assertRaises(django.db.utils.IntegrityError):
             GoalContributionFactory(
-                amount=1000,
-                start_date=self.today,
                 goal=goal,
-                percentage=10,
+                amount=1000,
+                percentage=-1,
+                date_range=range,
             )
 
-    def test_percentages_over_a_month_cannot_sum_to_more_than_100(self):
+    def test_percentage_cannot_be_over_100(self):
+        """
+        Test percentage cannot be over 100
+        """
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                percentage=101,
+            )
+
+    def test_cannot_have_range_before_start_date_of_goal(self):
+        """
+        Test cannot have range before start date of goal
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        date_range = ContributionRangeFactory(
+            start_date=goal.start_date - datetime.timedelta(days=1),
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                goal=goal,
+                date_range=date_range,
+            )
+
+    def test_cannot_have_range_after_end_date_of_goal(self):
+        """
+        Test cannot have range after end date of goal
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        date_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date + datetime.timedelta(days=1),
+            user=self.user,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            GoalContributionFactory(
+                amount=1000,
+                goal=goal,
+                date_range=date_range,
+            )
+
+    def test_percentages_over_a_range_cannot_sum_to_more_than_100(self):
         """
         Test percentages cannot sum to more than 100
         """
@@ -430,18 +469,23 @@ class TestGoalContributionModel(TestCase):
             expected_completion_date=self.next_year,
             user=self.user,
         )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal1.start_date,
+            end_date=goal1.expected_completion_date,
+            user=self.user,
+        )
         GoalContributionFactory(
             amount=1000,
-            start_date=self.today,
             goal=goal1,
             percentage=50,
+            date_range=contribution_range,
         )
         with self.assertRaises(django.core.exceptions.ValidationError):
             GoalContributionFactory(
                 amount=1000,
-                start_date=self.today,
                 goal=goal2,
                 percentage=51,
+                date_range=contribution_range,
             )
 
     def test_percentages_over_a_month_can_over_100_for_different_users(self):
@@ -457,17 +501,27 @@ class TestGoalContributionModel(TestCase):
         goal2 = GoalFactory(
             start_date=self.today, expected_completion_date=self.next_year, user=user2
         )
-        GoalContributionFactory(
-            amount=1000,
-            start_date=self.today,
-            goal=goal1,
-            percentage=50,
+        contribution_range1 = ContributionRangeFactory(
+            start_date=goal1.start_date,
+            end_date=goal1.expected_completion_date,
+            user=self.user,
+        )
+        contribution_range2 = ContributionRangeFactory(
+            start_date=goal2.start_date,
+            end_date=goal2.expected_completion_date,
+            user=user2,
         )
         GoalContributionFactory(
             amount=1000,
-            start_date=self.today,
+            goal=goal1,
+            percentage=100,
+            date_range=contribution_range1,
+        )
+        GoalContributionFactory(
+            amount=1000,
             goal=goal2,
-            percentage=51,
+            percentage=100,
+            date_range=contribution_range2,
         )
 
     def test_percentages_can_sum_over_100_if_they_dont_overlap(self):
@@ -480,21 +534,32 @@ class TestGoalContributionModel(TestCase):
             user=self.user,
         )
         goal2 = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
+            start_date=goal1.expected_completion_date + datetime.timedelta(days=1),
+            expected_completion_date=goal1.expected_completion_date
+            + datetime.timedelta(days=32),
+            user=self.user,
+        )
+        contribution_range1 = ContributionRangeFactory(
+            start_date=goal1.start_date,
+            end_date=goal1.expected_completion_date,
+            user=self.user,
+        )
+        contribution_range2 = ContributionRangeFactory(
+            start_date=goal2.start_date,
+            end_date=goal2.expected_completion_date,
             user=self.user,
         )
         GoalContributionFactory(
             amount=1000,
-            start_date=self.today,
             goal=goal1,
-            percentage=50,
+            percentage=100,
+            date_range=contribution_range1,
         )
         GoalContributionFactory(
             amount=1000,
-            start_date=self.today + datetime.timedelta(days=60),
             goal=goal2,
-            percentage=51,
+            percentage=100,
+            date_range=contribution_range2,
         )
 
     def test_cannot_create_contribution_for_completed_goal(self):
@@ -507,11 +572,16 @@ class TestGoalContributionModel(TestCase):
             user=self.user,
             status="COMPLETED",
         )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
         with self.assertRaises(django.core.exceptions.ValidationError):
             GoalContributionFactory(
                 amount=1000,
-                start_date=self.today,
                 goal=goal,
+                date_range=contribution_range,
             )
 
 
@@ -520,20 +590,25 @@ class TestCalculateContributionAmount(TestCase):
         self.user = UserFactory()
         self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
+        self.goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        self.contribution_range = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
+        )
 
     def test_happy_path(self):
         """
         Test happy path
         """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
         contribution = GoalContributionFactory(
-            start_date=self.today,
-            goal=goal,
+            goal=self.goal,
             percentage=100,
+            date_range=self.contribution_range,
         )
         income = TransactionFactory(
             user=self.user,
@@ -553,15 +628,10 @@ class TestCalculateContributionAmount(TestCase):
         """
         Test applies percentage
         """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
         contribution = GoalContributionFactory(
-            start_date=self.today,
-            goal=goal,
+            goal=self.goal,
             percentage=50,
+            date_range=self.contribution_range,
         )
         income = TransactionFactory(
             user=self.user,
@@ -581,15 +651,10 @@ class TestCalculateContributionAmount(TestCase):
         """
         Test sums transactions
         """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
         contribution = GoalContributionFactory(
-            start_date=self.today,
-            goal=goal,
+            goal=self.goal,
             percentage=100,
+            date_range=self.contribution_range,
         )
         income = TransactionFactory(
             user=self.user,
@@ -621,15 +686,10 @@ class TestCalculateContributionAmount(TestCase):
         """
         Test does not sum transactions outside of date range
         """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
         contribution = GoalContributionFactory(
-            start_date=self.today,
-            goal=goal,
+            goal=self.goal,
             percentage=100,
+            date_range=self.contribution_range,
         )
         income = TransactionFactory(
             user=self.user,
@@ -640,7 +700,7 @@ class TestCalculateContributionAmount(TestCase):
         outside_range = TransactionFactory(
             user=self.user,
             amount=1000,
-            date=contribution.start_date - datetime.timedelta(days=1),
+            date=contribution.date_range.start_date - datetime.timedelta(days=1),
             category=CategoryFactory(income=True, user=self.user),
         )
         expense = TransactionFactory(
@@ -655,15 +715,10 @@ class TestCalculateContributionAmount(TestCase):
         """
         Test does not sum transactions for other users
         """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
         contribution = GoalContributionFactory(
-            start_date=self.today,
-            goal=goal,
+            goal=self.goal,
             percentage=100,
+            date_range=self.contribution_range,
         )
         other_user = UserFactory()
         other_user_transaction = TransactionFactory(
@@ -676,16 +731,11 @@ class TestCalculateContributionAmount(TestCase):
         """
         Test uses amount if it exists
         """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
         contribution = GoalContributionFactory(
-            start_date=self.today,
-            goal=goal,
+            goal=self.goal,
             percentage=100,
             amount=1000,
+            date_range=self.contribution_range,
         )
         income = TransactionFactory(
             user=self.user,
@@ -700,3 +750,137 @@ class TestCalculateContributionAmount(TestCase):
             category=CategoryFactory(income=False, user=self.user),
         )
         self.assertEqual(contribution.contribution, 1000)
+
+
+class TestContributionRangeModel(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+
+    def test_can_get_all_related_contributions(self):
+        goal1 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        goal2 = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        contribution1 = GoalContributionFactory(
+            goal=goal1,
+            percentage=50,
+            date_range=contribution_range,
+        )
+        contribution2 = GoalContributionFactory(
+            goal=goal2,
+            percentage=50,
+            date_range=contribution_range,
+        )
+        self.assertEqual(
+            contribution_range.contributions.count(),
+            2,
+        )
+        self.assertIn(contribution1, contribution_range.contributions.all())
+        self.assertIn(contribution2, contribution_range.contributions.all())
+
+    def test_cannot_have_two_overlapping_ranges_same_date(self):
+        """
+        Test cannot have two overlapping ranges
+        """
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            ContributionRangeFactory(
+                start_date=self.today,
+                end_date=self.next_year,
+                user=self.user,
+            )
+
+    def test_cannot_have_two_overlapping_ranges_start_date_in_range(self):
+        """
+        Test cannot have two overlapping ranges
+        """
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            ContributionRangeFactory(
+                start_date=self.today + datetime.timedelta(days=1),
+                end_date=self.next_year + datetime.timedelta(days=365),
+                user=self.user,
+            )
+
+    def test_cannot_have_two_overlapping_ranges_end_date_in_range(self):
+        """
+        Test cannot have two overlapping ranges
+        """
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            ContributionRangeFactory(
+                start_date=self.today - datetime.timedelta(days=1),
+                end_date=self.next_year - datetime.timedelta(days=1),
+                user=self.user,
+            )
+
+    def test_cannot_have_two_overlapping_ranges_start_and_end_in_range(self):
+        """
+        Test can have two non overlapping ranges
+        """
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            ContributionRangeFactory(
+                start_date=self.today + datetime.timedelta(days=1),
+                end_date=self.next_year - datetime.timedelta(days=1),
+                user=self.user,
+            )
+
+    def test_can_have_two_non_overlapping_ranges(self):
+        """
+        Test can have two non overlapping ranges
+        """
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        ContributionRangeFactory(
+            start_date=self.next_year + datetime.timedelta(days=1),
+            end_date=self.next_year + datetime.timedelta(days=32),
+            user=self.user,
+        )
+
+    def test_can_have_two_overlapping_ranges_for_different_users(self):
+        """
+        Test can have two overlapping ranges for different users
+        """
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=UserFactory(),
+        )
