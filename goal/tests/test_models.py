@@ -1128,8 +1128,229 @@ class TestAddNewRange(TestCase):
         )
         new_range_right_side = ranges[2]
         self.assertEqual(
-            new_range_right_side.start_date, goal.expected_completion_date + datetime.timedelta(1)
+            new_range_right_side.start_date,
+            goal.expected_completion_date + datetime.timedelta(1),
         )
-        self.assertEqual(new_range_right_side.end_date, self.today + datetime.timedelta(days=365))
+        self.assertEqual(
+            new_range_right_side.end_date, self.today + datetime.timedelta(days=365)
+        )
         self.assertEqual(new_range_right_side.user, self.user)
         self.assertEqual(new_range_right_side.contributions.count(), 0)
+
+    def test_add_new_range_multiple_existing_ranges(self):
+        """
+        Test add new range multiple existing ranges
+        One range in case 2, one range in case 3
+        There is a gap between the two ranges.
+        5 total ranges should be returned
+        """
+        goal1 = GoalFactory(
+            start_date=self.today + datetime.timedelta(days=120),
+            expected_completion_date=self.today + datetime.timedelta(days=400),
+            user=self.user,
+        )
+        contribution_range1 = ContributionRangeFactory(
+            start_date=goal1.start_date,
+            end_date=goal1.expected_completion_date,
+            user=self.user,
+        )
+        contribution1 = GoalContributionFactory(
+            goal=goal1,
+            percentage=100,
+            date_range=contribution_range1,
+        )
+        goal2 = GoalFactory(
+            start_date=self.today - datetime.timedelta(days=365),
+            expected_completion_date=self.today + datetime.timedelta(days=40),
+            user=self.user,
+        )
+        contribution_range2 = ContributionRangeFactory(
+            start_date=goal2.start_date,
+            end_date=goal2.expected_completion_date,
+            user=self.user,
+        )
+        contribution2 = GoalContributionFactory(
+            goal=goal2,
+            percentage=100,
+            date_range=contribution_range2,
+        )
+        ranges = ContributionRange.add_new_range(
+            self.user, self.today, self.today + datetime.timedelta(days=365)
+        )
+        self.assertEqual(len(ranges), 5)
+        goal2_left_side_range = ranges[0]
+        self.assertEqual(goal2_left_side_range.start_date, goal2.start_date)
+        self.assertEqual(
+            goal2_left_side_range.end_date,
+            self.today - datetime.timedelta(days=1),
+        )
+        self.assertEqual(goal2_left_side_range.user, self.user)
+        self.assertEqual(goal2_left_side_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution2, goal2_left_side_range.contributions.get()
+            )
+        )
+
+        goal2_range_overlapping_old_with_new = ranges[1]
+        self.assertEqual(goal2_range_overlapping_old_with_new.start_date, self.today)
+        self.assertEqual(
+            goal2_range_overlapping_old_with_new.end_date,
+            goal2.expected_completion_date,
+        )
+        self.assertEqual(goal2_range_overlapping_old_with_new.user, self.user)
+        self.assertEqual(goal2_range_overlapping_old_with_new.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution2,
+                goal2_range_overlapping_old_with_new.contributions.get(),
+            )
+        )
+        new_range_no_overlaps = ranges[2]
+        self.assertEqual(
+            new_range_no_overlaps.start_date,
+            goal2.expected_completion_date + datetime.timedelta(1),
+        )
+        self.assertEqual(
+            new_range_no_overlaps.end_date,
+            goal1.start_date - datetime.timedelta(days=1),
+        )
+        self.assertEqual(new_range_no_overlaps.user, self.user)
+        self.assertEqual(new_range_no_overlaps.contributions.count(), 0)
+
+        goal1_range_overlapping_old_with_new = ranges[3]
+        self.assertEqual(
+            goal1_range_overlapping_old_with_new.start_date, goal1.start_date
+        )
+        self.assertEqual(
+            goal1_range_overlapping_old_with_new.end_date,
+            self.today + datetime.timedelta(days=365),
+        )
+        self.assertEqual(goal1_range_overlapping_old_with_new.user, self.user)
+        self.assertEqual(goal1_range_overlapping_old_with_new.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution1,
+                goal1_range_overlapping_old_with_new.contributions.get(),
+            )
+        )
+
+        goal1_right_side_range = ranges[4]
+        self.assertEqual(
+            goal1_right_side_range.start_date, self.today + datetime.timedelta(days=366)
+        )
+        self.assertEqual(
+            goal1_right_side_range.end_date, goal1.expected_completion_date
+        )
+        self.assertEqual(goal1_right_side_range.user, self.user)
+        self.assertEqual(goal1_right_side_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution1,
+                goal1_right_side_range.contributions.get(),
+            )
+        )
+
+    def test_add_new_range_multiple_existing_ranges_no_gap(self):
+        """
+        Test add new range multiple existing ranges
+        One range in case 2, one range in case 3
+        No gap between the two ranges.
+        4 total ranges should be returned
+        """
+        goal1 = GoalFactory(
+            start_date=self.today + datetime.timedelta(days=40),
+            expected_completion_date=self.today + datetime.timedelta(days=400),
+            user=self.user,
+        )
+        contribution_range1 = ContributionRangeFactory(
+            start_date=goal1.start_date,
+            end_date=goal1.expected_completion_date,
+            user=self.user,
+        )
+        contribution1 = GoalContributionFactory(
+            goal=goal1,
+            percentage=100,
+            date_range=contribution_range1,
+        )
+        goal1_month = goal1.start_date.month
+        # goal2_end_date = goal
+        goal2 = GoalFactory(
+            start_date=self.today - datetime.timedelta(days=365),
+            expected_completion_date=goal1.start_date - datetime.timedelta(days=1),
+            user=self.user,
+        )
+        contribution_range2 = ContributionRangeFactory(
+            start_date=goal2.start_date,
+            end_date=goal2.expected_completion_date,
+            user=self.user,
+        )
+        contribution2 = GoalContributionFactory(
+            goal=goal2,
+            percentage=100,
+            date_range=contribution_range2,
+        )
+        ranges = ContributionRange.add_new_range(
+            self.user, self.today, self.today + datetime.timedelta(days=365)
+        )
+        self.assertEqual(len(ranges), 4)
+        goal2_left_side_range = ranges[0]
+        self.assertEqual(goal2_left_side_range.start_date, goal2.start_date)
+        self.assertEqual(
+            goal2_left_side_range.end_date,
+            self.today - datetime.timedelta(days=1),
+        )
+        self.assertEqual(goal2_left_side_range.user, self.user)
+        self.assertEqual(goal2_left_side_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution2, goal2_left_side_range.contributions.get()
+            )
+        )
+
+        goal2_range_overlapping_old_with_new = ranges[1]
+        self.assertEqual(goal2_range_overlapping_old_with_new.start_date, self.today)
+        self.assertEqual(
+            goal2_range_overlapping_old_with_new.end_date,
+            goal2.expected_completion_date,
+        )
+        self.assertEqual(goal2_range_overlapping_old_with_new.user, self.user)
+        self.assertEqual(goal2_range_overlapping_old_with_new.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution2,
+                goal2_range_overlapping_old_with_new.contributions.get(),
+            )
+        )
+        goal1_range_overlapping_old_with_new = ranges[2]
+        self.assertEqual(
+            goal1_range_overlapping_old_with_new.start_date, goal1.start_date
+        )
+        self.assertEqual(
+            goal1_range_overlapping_old_with_new.end_date,
+            self.today + datetime.timedelta(days=365),
+        )
+        self.assertEqual(goal1_range_overlapping_old_with_new.user, self.user)
+        self.assertEqual(goal1_range_overlapping_old_with_new.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution1,
+                goal1_range_overlapping_old_with_new.contributions.get(),
+            )
+        )
+
+        goal1_right_side_range = ranges[3]
+        self.assertEqual(
+            goal1_right_side_range.start_date, self.today + datetime.timedelta(days=366)
+        )
+        self.assertEqual(
+            goal1_right_side_range.end_date, goal1.expected_completion_date
+        )
+        self.assertEqual(goal1_right_side_range.user, self.user)
+        self.assertEqual(goal1_right_side_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution1,
+                goal1_right_side_range.contributions.get(),
+            )
+        )
