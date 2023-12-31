@@ -1,5 +1,16 @@
 from rest_framework import serializers
-from .models import Goal, GoalContribution
+from .models import Goal, GoalContribution, ContributionRange
+
+
+class ContributionRangeSerializer(serializers.ModelSerializer):
+    """
+    Contribution Range serializer
+    """
+
+    class Meta:
+        model = ContributionRange
+        fields = ("id", "start_date", "end_date", "user")
+        read_only_fields = ("id", "user")
 
 
 class GoalContributionSerializer(serializers.ModelSerializer):
@@ -7,15 +18,26 @@ class GoalContributionSerializer(serializers.ModelSerializer):
     Goal Contribution serializer
     """
 
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+
     class Meta:
         model = GoalContribution
         fields = (
             "id",
             "amount",
             "goal",
+            "start_date",
+            "end_date",
             "percentage",
         )
         read_only_fields = ("id", "goal", "amount")
+
+    def get_start_date(self, obj):
+        return obj.date_range.start_date
+
+    def get_end_date(self, obj):
+        return obj.date_range.end_date
 
 
 class GoalSerializer(serializers.ModelSerializer):
@@ -32,6 +54,16 @@ class GoalSerializer(serializers.ModelSerializer):
     )
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1)
     contributions = GoalContributionSerializer(many=True, read_only=True)
+
+    def to_representation(self, instance):
+        data = super(GoalSerializer, self).to_representation(instance)
+        if not "contributions" in self.context:
+            return data
+        contributions = self.context["contributions"]
+        data["contributions"] = GoalContributionSerializer(
+            contributions, many=True
+        ).data
+        return data
 
     class Meta:
         model = Goal

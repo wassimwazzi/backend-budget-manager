@@ -360,6 +360,65 @@ class TestGoalProgress(TestCase):
         self.assertEqual(self.goal.get_progress(percentage=True), 200)
 
 
+class TestGoalGetContributions(TestCase):
+    def setUp(self):
+        # keep signals for this test
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+        self.goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+
+    def test_get_contributions_without_overlapping(self):
+        contribution_range = ContributionRange.objects.get()
+        contribution_range.start_date = self.today + datetime.timedelta(days=50)
+        contribution_range.save()
+        new_range = ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.today + datetime.timedelta(days=49),
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=self.goal,
+            percentage=50,
+            date_range=new_range,
+        )
+        self.assertEqual(self.goal.get_contributions().count(), 2)
+        self.assertIn(contribution, self.goal.get_contributions())
+
+    def test_get_contributions_with_overlapping(self):
+        new_goal = GoalFactory(
+            start_date=self.goal.start_date,
+            expected_completion_date=self.goal.expected_completion_date
+            + datetime.timedelta(days=60),
+            user=self.user,
+        )
+        new_contribution = new_goal.contributions.get(
+            date_range__start_date=new_goal.start_date
+        )
+        overlapping_contributions = self.goal.get_contributions(
+            include_overlapping=True
+        )
+        self.assertEqual(overlapping_contributions.count(), 2)
+        self.assertIn(new_contribution, overlapping_contributions)
+
+    def test_does_not_get_other_users_contributions(self):
+        other_user = UserFactory()
+        GoalFactory(
+            start_date=self.goal.start_date,
+            expected_completion_date=self.goal.expected_completion_date
+            + datetime.timedelta(days=60),
+            user=other_user,
+        )
+        overlapping_contributions = self.goal.get_contributions(
+            include_overlapping=True
+        )
+        self.assertEqual(overlapping_contributions.count(), 1)
+
+
 class TestGoalContributionModel(TestCase):
     def setUp(self):
         post_save.disconnect(sender=Goal, receiver=on_goal_create)
@@ -812,6 +871,17 @@ class TestContributionRangeModel(TestCase):
         )
         self.assertIn(contribution1, contribution_range.contributions.all())
         self.assertIn(contribution2, contribution_range.contributions.all())
+
+    def test_start_date_must_be_after_end_date(self):
+        """
+        Test start date must be after end date
+        """
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            ContributionRangeFactory(
+                start_date=self.next_year,
+                end_date=self.today,
+                user=self.user,
+            )
 
     def test_cannot_have_two_overlapping_ranges_same_date(self):
         """
@@ -1592,3 +1662,108 @@ class TestAddNewRange(TestCase):
                 goal1_right_side_range.contributions.get(),
             )
         )
+
+
+class TestUpdateContributions(TestCase):
+    def setUp(self):
+        # keep signals
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+        self.goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+
+    @staticmethod
+    def create_contribution(goal, start_date, end_date, user, percentage=100):
+        contribution_range = ContributionRangeFactory(
+            start_date=start_date,
+            end_date=end_date,
+            user=user,
+        )
+        return GoalContributionFactory(
+            goal=goal,
+            percentage=percentage,
+            date_range=contribution_range,
+        )
+
+    def test_update_contributions(self):
+        """
+        Test update contributions
+        """
+        goal2 = GoalFactory(
+            start_date=self.goal.start_date,
+            expected_completion_date=self.goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution_range = ContributionRange.objects.get()
+        goal_contribution = self.goal.contributions.get()
+        goal2_contribution = goal2.contributions.get()
+        self.assertEqual(goal_contribution.percentage, 100)
+        self.assertEqual(goal2_contribution.percentage, 0)
+        self.assertEqual(contribution_range.contributions.count(), 2)
+
+        # update goal 2 to be 50% of the range
+        contribution_range.update_contributions(
+            [
+                {
+                    "goal": goal2,
+                    "percentage": 50,
+                    "amount": 200,
+                },
+                {
+                    "goal": self.goal,
+                    "percentage": 50,
+                    "amount": 100,
+                },
+            ]
+        )
+        self.goal.refresh_from_db(), goal2.refresh_from_db()
+        goal_contribution = self.goal.contributions.get()
+        goal2_contribution = goal2.contributions.get()
+        self.assertEqual(goal_contribution.percentage, 50)
+        self.assertEqual(goal2_contribution.percentage, 50)
+        self.assertEqual(contribution_range.contributions.count(), 2)
+        self.assertEqual(goal2_contribution.amount, 200)
+        self.assertEqual(goal_contribution.amount, 100)
+
+    def test_update_contributions_percentage_over_100(self):
+        """
+        Test update contributions
+        """
+        goal2 = GoalFactory(
+            start_date=self.goal.start_date,
+            expected_completion_date=self.goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution_range = ContributionRange.objects.get()
+        goal_contribution = self.goal.contributions.get()
+        goal2_contribution = goal2.contributions.get()
+        self.assertEqual(goal_contribution.percentage, 100)
+        self.assertEqual(goal2_contribution.percentage, 0)
+        self.assertEqual(contribution_range.contributions.count(), 2)
+
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            # update goal 2 to be 50% of the range
+            contribution_range.update_contributions(
+                [
+                    {
+                        "goal": goal2,
+                        "percentage": 100,
+                        "amount": 200,
+                    },
+                    {
+                        "goal": self.goal,
+                        "percentage": 50,
+                        "amount": 100,
+                    },
+                ]
+            )
+        self.goal.refresh_from_db(), goal2.refresh_from_db()
+        goal_contribution = self.goal.contributions.get()
+        goal2_contribution = goal2.contributions.get()
+        self.assertEqual(goal_contribution.percentage, 100)
+        self.assertEqual(goal2_contribution.percentage, 0)
+        self.assertEqual(contribution_range.contributions.count(), 2)

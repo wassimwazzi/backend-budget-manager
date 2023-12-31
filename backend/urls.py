@@ -22,7 +22,7 @@ from rest_framework import routers
 from rest_framework.authtoken.views import obtain_auth_token
 import category.views
 import currency.views
-from goal.views import GoalView#, GoalContributionView
+from goal.views import GoalView
 import transaction.views
 import budget.views
 import fileupload.views
