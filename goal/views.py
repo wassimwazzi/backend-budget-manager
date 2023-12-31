@@ -42,3 +42,25 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
         context = {"contributions": contributions} if contributions else None
         serializer = GoalSerializer(goal, context=context)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def update_contributions(self, request):
+        result = []
+        # FIXME: This should be in a transaction
+        try:
+            for contribution_range in request.data.get("contribution_ranges", []):
+                contribution_range_obj = ContributionRange.objects.get(
+                    id=contribution_range["id"]
+                )
+                if not "contributions" in contribution_range:
+                    return Response(
+                        {"error": "contributions is required for all ranges"}, status=400
+                    )
+                contributions = contribution_range["contributions"]
+                contribution_range_obj.update_contributions(contributions)
+                contribution_range_obj.refresh_from_db()
+                result.append(contribution_range_obj)
+            serializer = ContributionRangeSerializer(result, many=True)
+            return Response(serializer.data)
+        except django.core.exceptions.ValidationError as e:
+            return Response(e, status=400)

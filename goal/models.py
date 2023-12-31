@@ -230,10 +230,11 @@ class ContributionRange(models.Model):
         with transaction.atomic():
             self.contributions.all().delete()
             for contribution in contributions:
+                goal = Goal.objects.get(id=contribution["goal"])
                 GoalContribution.objects.create(
-                    goal=contribution["goal"],
+                    goal=goal,
                     percentage=contribution["percentage"],
-                    amount=contribution["amount"],
+                    amount=contribution.get("amount"),
                     date_range=self,
                 )
 

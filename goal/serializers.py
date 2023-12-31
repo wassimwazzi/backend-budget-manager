@@ -2,17 +2,6 @@ from rest_framework import serializers
 from .models import Goal, GoalContribution, ContributionRange
 
 
-class ContributionRangeSerializer(serializers.ModelSerializer):
-    """
-    Contribution Range serializer
-    """
-
-    class Meta:
-        model = ContributionRange
-        fields = ("id", "start_date", "end_date", "user")
-        read_only_fields = ("id", "user")
-
-
 class GoalContributionSerializer(serializers.ModelSerializer):
     """
     Goal Contribution serializer
@@ -38,6 +27,19 @@ class GoalContributionSerializer(serializers.ModelSerializer):
 
     def get_end_date(self, obj):
         return obj.date_range.end_date
+
+
+class ContributionRangeSerializer(serializers.ModelSerializer):
+    """
+    Contribution Range serializer
+    """
+
+    contributions = GoalContributionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ContributionRange
+        fields = ("id", "start_date", "end_date", "user", "contributions")
+        read_only_fields = ("id", "user", "contributions")
 
 
 class GoalSerializer(serializers.ModelSerializer):
