@@ -8,11 +8,7 @@ from ..models import GoalContribution, Goal, ContributionRange
 from ..signals import on_goal_create
 from transaction.tests.factories import TransactionFactory
 from transaction.tests.factories import CategoryFactory
-# import django settings
-from django.conf import settings
-# set debug to true
-settings.DEBUG = True
-print(settings.DEBUG)
+
 
 class TestGoalModel(TestCase):
     """
@@ -1134,7 +1130,29 @@ class TestAddNewRange(TestCase):
         self.assertEqual(range.contributions.count(), 1)
         self.assertTrue(compare_contributions(contribution, range.contributions.get()))
 
-    def test_add_new_range_existing_range_case_2(self):
+    def test_add_new_range_case_2_2_overlapping_start_eq_new_end(self):
+        """
+        Case 2: Overlapping range start date is eq to new range end date
+        Overlapping range end date is after new range end date (obviously)
+        """
+        goal = GoalFactory(
+            start_date=self.today + datetime.timedelta(days=40),
+            expected_completion_date=self.today + datetime.timedelta(days=365),
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=goal,
+            percentage=100,
+            date_range=contribution_range,
+        )
+        ranges = ContributionRange.add_new_range(self.user, self.today, goal.start_date)
+
+    def test_add_new_range_existing_range_case_2_3(self):
         """
         Case 2: Old overlapping range start date is after new range start date
         AND end date is after new range end date

@@ -230,204 +230,6 @@ class ContributionRange(models.Model):
         )
 
     @staticmethod
-    def _handle_case_1(overlapping_range, start_date, end_date, contributions):
-        """
-        Case 1: overlapping_range.start_date <= start_date <= end_date <= overlapping_range.end_date
-        new range is a subinterval of the existing range
-        split old range into 2 new ranges, and create new range from start_date to end_date
-          part 1: overlapping_range.start_date to start_date, and copy over the contributions
-          part 2: end_date to overlapping_range.end_date and copy over the contributions
-          Create new range: start_date to end_date, and add the contributions of old range to it
-        """
-        logging.info("Case 1: %s, %s, %s", overlapping_range, start_date, end_date)
-        if (
-            overlapping_range.start_date == start_date
-            and overlapping_range.end_date == end_date
-        ):
-            logging.info("No need to split range. No change.")
-            return [overlapping_range]
-        result = []
-        contributions_backup = list(
-            map(lambda x: {"goal": x.goal, "percentage": x.percentage}, contributions)
-        )
-        overlapping_range_start_date = overlapping_range.start_date
-        overlapping_range_end_date = overlapping_range.end_date
-        # delete all contributions from old range
-        contributions.delete()  # this keeps the contributions in memory, so we can add them to the new ranges
-        contributions = contributions_backup
-        # delete the old range
-        user = overlapping_range.user
-        overlapping_range.delete()
-        if overlapping_range.start_date < start_date:
-            # create new range for overlapping_range.start_date to start_date
-            old_range_left_side = ContributionRange.objects.create(
-                user=user,
-                start_date=overlapping_range_start_date,
-                end_date=start_date - datetime.timedelta(days=1),
-            )
-            logging.info(
-                "created new range for old left hand side %s from %s to %s",
-                old_range_left_side,
-                overlapping_range_start_date,
-                start_date - datetime.timedelta(days=1),
-            )
-            # add contributions to new range
-            for contribution in contributions:
-                GoalContribution.objects.create(
-                    goal=contribution["goal"],
-                    percentage=contribution["percentage"],
-                    date_range=old_range_left_side,
-                )
-            result.append(old_range_left_side)
-        if overlapping_range.end_date > end_date:
-            # create new range for end_date to overlapping_range.end_date
-            old_range_right_side = ContributionRange.objects.create(
-                user=user,
-                start_date=end_date + datetime.timedelta(days=1),
-                end_date=overlapping_range_end_date,
-            )
-            logging.info(
-                "created new range for old right hand side %s from %s to %s",
-                old_range_right_side,
-                end_date + datetime.timedelta(days=1),
-                overlapping_range_end_date,
-            )
-            # add contributions to new range
-            for contribution in contributions:
-                GoalContribution.objects.create(
-                    goal=contribution["goal"],
-                    percentage=contribution["percentage"],
-                    date_range=old_range_right_side,
-                )
-            result.append(old_range_right_side)
-        # create new range for start_date to end_date
-        new_range = ContributionRange.objects.create(
-            user=user, start_date=start_date, end_date=end_date
-        )
-        logging.info(
-            "created new range %s from %s to %s",
-            new_range,
-            start_date,
-            end_date,
-        )
-        # add contributions to new range
-        for contribution in contributions:
-            GoalContribution.objects.create(
-                goal=contribution["goal"],
-                percentage=contribution["percentage"],
-                date_range=new_range,
-            )
-        result.append(new_range)
-        result = sorted(result, key=lambda x: x.start_date)
-        return result
-
-    @staticmethod
-    def _handle_case_2(overlapping_range, start_date, end_date, contributions):
-        """
-        Case 2: start_date < overlapping_range.start_date <= end_date <= overlapping_range.end_date
-        shift old range to the right: overlapping_range.start_date = end_date + 1, keep same contributions
-        create new range from overlapping_range.start_date to end_date, and add the contributions of old range to it
-        add this new range to result
-        """
-        logging.info("Case 2: %s, %s, %s", overlapping_range, start_date, end_date)
-        result = []
-        user = overlapping_range.user
-        contributions_backup = list(
-            map(lambda x: {"goal": x.goal, "percentage": x.percentage}, contributions)
-        )
-        # delete all contributions from old range
-        # contributions.delete()  # this keeps the contributions in memory, so we can add them to the new ranges
-        # contributions = contributions_backup
-        # shift old range to the right
-        overlapping_range_start_date = overlapping_range.start_date
-        overlapping_range_end_date = overlapping_range.end_date
-        # overlapping_range.delete()
-        overlapping_range.start_date = end_date + datetime.timedelta(
-            days=1
-        )  # shifft to the right
-        overlapping_range.save()
-        logging.info(
-            "set start date of old range from %s to %s",
-            overlapping_range_start_date,
-            overlapping_range.start_date,
-        )
-        # create new range from overlapping_range.start_date to end_date
-        new_range = ContributionRange.objects.create(
-            user=user,
-            start_date=overlapping_range_start_date,
-            end_date=end_date,
-        )
-        result.append(new_range)
-        result.append(overlapping_range)  # flip order so they are sorted by start_date
-        logging.info(
-            "created new range %s from %s to %s",
-            new_range,
-            overlapping_range_start_date,
-            end_date,
-        )
-        # add contributions to new range
-        for contribution in contributions:
-            GoalContribution.objects.create(
-                goal=contribution.goal,
-                percentage=contribution.percentage,
-                date_range=new_range,
-            )
-        return result
-
-    @staticmethod
-    def _handle_case_3(overlapping_range, start_date, end_date, contributions):
-        """
-        Case 3: overlapping_range.start_date <= start_date <= overlapping_range.end_date <= end_date
-        shift old range to the left: overlapping_range.end_date = start_date - 1, keep same contributions
-        create new range from start_date to overlapping_range.end_date, and add the contributions of old range to it
-        add this new range to result
-        """
-        logging.info("Case 3: %s, %s, %s", overlapping_range, start_date, end_date)
-        result = []
-        # shift old range to the left
-        overlapping_range_end_date = overlapping_range.end_date
-        overlapping_range.end_date = start_date - datetime.timedelta(days=1)
-        overlapping_range.save()
-        logging.info(
-            "set end date of old range from %s to %s",
-            overlapping_range_end_date,
-            overlapping_range.end_date,
-        )
-        # create new range from start_date to overlapping_range.end_date
-        new_range = ContributionRange.objects.create(
-            user=overlapping_range.user,
-            start_date=start_date,
-            end_date=overlapping_range_end_date,
-        )
-        result.append(overlapping_range)
-        result.append(new_range)
-        logging.info(
-            "created new range %s from %s to %s",
-            new_range,
-            start_date,
-            overlapping_range_end_date,
-        )
-        # add contributions to new range
-        for contribution in contributions:
-            GoalContribution.objects.create(
-                goal=contribution.goal,
-                percentage=contribution.percentage,
-                date_range=new_range,
-            )
-        return result
-
-    @staticmethod
-    def _handle_case_4(overlapping_range, start_date, end_date, _contributions):
-        """
-        Case 4: start_date <= overlapping_range.start_date <= overlapping_range.end_date <= end_date
-        overlapping_range is a subinterval of the new range
-        keep old range, and add it to result
-        """
-        logging.info("Case 4: %s, %s, %s", overlapping_range, start_date, end_date)
-        logging.info("keep old range %s", overlapping_range)
-        return [overlapping_range]
-
-    @staticmethod
     def add_new_range(user, start_date, end_date):
         """
         Create a new contribution range for a user.
@@ -502,54 +304,6 @@ class ContributionRange(models.Model):
             # 2. overlapping_range.end_date + 1 to end_date
 
             contributions = overlapping_range.contributions.all()
-            # # Case 1
-            # if (
-            #     overlapping_range.start_date <= start_date
-            #     and end_date <= overlapping_range.end_date
-            # ):
-            #     # no gap to fill
-            #     # we can return here, since we know there's only 1 overlapping range
-            #     return ContributionRange._handle_case_1(
-            #         overlapping_range, start_date, end_date, contributions
-            #     )
-            # # Case 2
-            # if (
-            #     start_date <= overlapping_range.start_date
-            #     and end_date <= overlapping_range.end_date
-            # ):
-            #     new_ranges = ContributionRange._handle_case_2(
-            #         overlapping_range, start_date, end_date, contributions
-            #     )
-            #     result += new_ranges
-            #     new_range = new_ranges[0]
-            #     # add to filled_ranges
-            #     filled_ranges.append((new_range.start_date, new_range.end_date))
-            #     continue
-            # # Case 3
-            # if (
-            #     overlapping_range.start_date <= start_date
-            #     and overlapping_range.end_date <= end_date
-            # ):
-            #     new_ranges = ContributionRange._handle_case_3(
-            #         overlapping_range, start_date, end_date, contributions
-            #     )
-            #     result += new_ranges
-            #     new_range = new_ranges[1]
-            #     # add to filled_ranges
-            #     filled_ranges.append((new_range.start_date, new_range.end_date))
-            #     continue
-            # # Case 4
-            # if (
-            #     start_date <= overlapping_range.start_date
-            #     and overlapping_range.end_date <= end_date
-            # ):
-            #     new_range = ContributionRange._handle_case_4(
-            #         overlapping_range, start_date, end_date, contributions
-            #     )[0]
-            #     result.append(new_range)
-            #     # add to filled_ranges
-            #     filled_ranges.append((new_range.start_date, new_range.end_date))
-            #     continue
 
             def add_contributions(contributions, date_range):
                 for contribution in contributions:
@@ -573,7 +327,7 @@ class ContributionRange(models.Model):
             overlapping_range_end_date = overlapping_range.end_date
             user = overlapping_range.user
             overlapping_range.delete()
-            print(ContributionRange.objects.all())
+
             new_start_to_overlapping_start = (
                 overlapping_range_start_date - start_date
             )  # IGNORE
@@ -648,7 +402,7 @@ class ContributionRange(models.Model):
                 ranges.append(middle)
                 filled_ranges.append((middle.start_date, middle.end_date))
             else:
-                logging.error("middle_end is negative: %s", middle_end)
+                logging.warning("middle_end is negative: %s", middle_end)
 
             # right side
             if new_end_to_overlapping_end > datetime.timedelta(0):
@@ -721,15 +475,19 @@ class GoalContribution(models.Model):
         """
         The percentages of ALL user contributions for a given month cannot sum to more than 100
         """
-        total_existing_percentage = (
-            ContributionRange.objects.get(
-                id=self.date_range.id
-            ).contributions.aggregate(models.Sum("percentage"))["percentage__sum"]
-            or 0
-        )
+        if not self.pk:
+            total_existing_percentage = self.date_range.total_percentage
+        else:
+            # if update, we need to exclude the current contribution from the total
+            total_existing_percentage = (
+                self.date_range.contributions.exclude(id=self.id).aggregate(
+                    models.Sum("percentage")
+                )["percentage__sum"]
+                or 0
+            )
         if total_existing_percentage + self.percentage > 100:
             raise django.core.exceptions.ValidationError(
-                "Percentages cannot sum to more than 100."
+                f"Percentages cannot sum to more than 100. Total existing percentage: {total_existing_percentage}, new percentage: {self.percentage}"
             )
 
     def validate_range(self):
