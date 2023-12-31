@@ -33,14 +33,11 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=201, headers=headers)
 
-    def retrieve(self, request, pk=None):
+    @action(detail=True, methods=["get"])
+    def contribution_ranges(self, request, pk=None):
         goal = self.get_object()
-        include_overlapping = (
-            request.query_params.get("include_overlapping", "").lower() == "true"
-        )
-        contributions = goal.get_contributions(include_overlapping=include_overlapping)
-        context = {"contributions": contributions} if contributions else None
-        serializer = GoalSerializer(goal, context=context)
+        contributions = goal.contribution_ranges
+        serializer = ContributionRangeSerializer(contributions, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=["post"])
@@ -54,7 +51,8 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
                 )
                 if not "contributions" in contribution_range:
                     return Response(
-                        {"error": "contributions is required for all ranges"}, status=400
+                        {"error": "contributions is required for all ranges"},
+                        status=400,
                     )
                 contributions = contribution_range["contributions"]
                 contribution_range_obj.update_contributions(contributions)

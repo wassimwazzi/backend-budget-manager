@@ -360,65 +360,6 @@ class TestGoalProgress(TestCase):
         self.assertEqual(self.goal.get_progress(percentage=True), 200)
 
 
-class TestGoalGetContributions(TestCase):
-    def setUp(self):
-        # keep signals for this test
-        self.user = UserFactory()
-        self.today = datetime.date.today()
-        self.next_year = self.today.replace(year=self.today.year + 1)
-        self.goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
-
-    def test_get_contributions_without_overlapping(self):
-        contribution_range = ContributionRange.objects.get()
-        contribution_range.start_date = self.today + datetime.timedelta(days=50)
-        contribution_range.save()
-        new_range = ContributionRangeFactory(
-            start_date=self.today,
-            end_date=self.today + datetime.timedelta(days=49),
-            user=self.user,
-        )
-        contribution = GoalContributionFactory(
-            goal=self.goal,
-            percentage=50,
-            date_range=new_range,
-        )
-        self.assertEqual(self.goal.get_contributions().count(), 2)
-        self.assertIn(contribution, self.goal.get_contributions())
-
-    def test_get_contributions_with_overlapping(self):
-        new_goal = GoalFactory(
-            start_date=self.goal.start_date,
-            expected_completion_date=self.goal.expected_completion_date
-            + datetime.timedelta(days=60),
-            user=self.user,
-        )
-        new_contribution = new_goal.contributions.get(
-            date_range__start_date=new_goal.start_date
-        )
-        overlapping_contributions = self.goal.get_contributions(
-            include_overlapping=True
-        )
-        self.assertEqual(overlapping_contributions.count(), 2)
-        self.assertIn(new_contribution, overlapping_contributions)
-
-    def test_does_not_get_other_users_contributions(self):
-        other_user = UserFactory()
-        GoalFactory(
-            start_date=self.goal.start_date,
-            expected_completion_date=self.goal.expected_completion_date
-            + datetime.timedelta(days=60),
-            user=other_user,
-        )
-        overlapping_contributions = self.goal.get_contributions(
-            include_overlapping=True
-        )
-        self.assertEqual(overlapping_contributions.count(), 1)
-
-
 class TestGoalContributionModel(TestCase):
     def setUp(self):
         post_save.disconnect(sender=Goal, receiver=on_goal_create)

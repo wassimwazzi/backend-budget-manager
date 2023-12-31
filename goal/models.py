@@ -145,19 +145,14 @@ class Goal(models.Model):
         if percentage:
             return total_contribution / self.amount * 100
         return total_contribution
-
-    def get_contributions(self, include_overlapping=False):
+    
+    @property
+    def contribution_ranges(self):
         """
-        Get all contributions for this goal.
-        If include_overlapping is True, then include contributions from overlapping ranges.
+        Get all contribution ranges for this goal.
         """
-        if not include_overlapping:
-            return self.contributions.all()
-
-        return GoalContribution.objects.filter(
-            id__in=self.contributions.values_list(
-                "date_range__contributions__id", flat=True
-            )
+        return ContributionRange.objects.filter(
+            id__in=self.contributions.values_list("date_range__id", flat=True)
         )
 
     class Meta:
