@@ -1,7 +1,14 @@
 import factory
 import factory.fuzzy
 from users.user_factory import UserFactory
-from ..models import Goal, GoalContribution, GoalType, GoalStatus, GoalRecurranceType
+from ..models import (
+    Goal,
+    GoalContribution,
+    GoalType,
+    GoalStatus,
+    GoalRecurranceType,
+    ContributionRange,
+)
 import datetime
 
 
@@ -29,6 +36,25 @@ class GoalFactory(factory.django.DjangoModelFactory):
     user = factory.SubFactory(UserFactory)
 
 
+class ContributionRangeFactory(factory.django.DjangoModelFactory):
+    """
+    Contribution range factory
+    """
+
+    class Meta:
+        model = ContributionRange
+
+    user = factory.SubFactory(UserFactory)
+    start_date = factory.fuzzy.FuzzyDate(
+        datetime.date.today() + datetime.timedelta(days=1),
+        datetime.date.today().replace(day=1) + datetime.timedelta(days=365),
+    )
+    end_date = factory.fuzzy.FuzzyDate(
+        datetime.date.today() + datetime.timedelta(days=31),
+        datetime.date.today().replace(day=1) + datetime.timedelta(days=365),
+    )
+
+
 class GoalContributionFactory(factory.django.DjangoModelFactory):
     """
     Goal contribution factory
@@ -38,22 +64,8 @@ class GoalContributionFactory(factory.django.DjangoModelFactory):
         model = GoalContribution
 
     amount = None
-    goal = factory.SubFactory(GoalFactory, start_date=datetime.date.today().replace(day=1))
+    goal = factory.SubFactory(
+        GoalFactory, start_date=datetime.date.today().replace(day=1)
+    )
     percentage = factory.fuzzy.FuzzyInteger(0, 100)
-
-    @factory.lazy_attribute
-    def start_date(self):
-        # Check if the goal already has a contribution
-        existing_contributions = GoalContribution.objects.filter(goal=self.goal)
-
-        if existing_contributions.exists():
-            # Increment the start_date to the next month
-            last_contribution = existing_contributions.latest("start_date")
-            next_month_start_date = (
-                last_contribution.start_date.replace(day=1) + datetime.timedelta(days=32)
-            ).replace(day=1)
-
-            return next_month_start_date
-        else:
-            # default to goal start date
-            return self.goal.start_date
+    date_range = factory.SubFactory(ContributionRangeFactory)
