@@ -8,7 +8,11 @@ from ..models import GoalContribution, Goal, ContributionRange
 from ..signals import on_goal_create
 from transaction.tests.factories import TransactionFactory
 from transaction.tests.factories import CategoryFactory
-
+# import django settings
+from django.conf import settings
+# set debug to true
+settings.DEBUG = True
+print(settings.DEBUG)
 
 class TestGoalModel(TestCase):
     """
@@ -20,6 +24,9 @@ class TestGoalModel(TestCase):
         self.user = UserFactory()
         self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
+
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
 
     def test_goal_amount_must_be_positive(self):
         """
@@ -262,6 +269,9 @@ class TestGoalProgress(TestCase):
             + (self.goal.expected_completion_date - self.goal.start_date) / 2
         )
 
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
+
     def test_progress_is_0_if_no_contributions(self):
         """
         Test progress is 0 if no contributions
@@ -360,6 +370,9 @@ class TestGoalContributionModel(TestCase):
         self.user = UserFactory()
         self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
+
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
 
     def test_cascade_deletion_of_goal(self):
         """
@@ -607,6 +620,9 @@ class TestCalculateContributionAmount(TestCase):
             user=self.user,
         )
 
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
+
     def test_happy_path(self):
         """
         Test happy path
@@ -765,6 +781,9 @@ class TestContributionRangeModel(TestCase):
         self.today = datetime.date.today()
         self.next_year = self.today.replace(year=self.today.year + 1)
 
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
+
     def test_can_get_all_related_contributions(self):
         goal1 = GoalFactory(
             start_date=self.today,
@@ -910,6 +929,9 @@ class TestAddNewRange(TestCase):
         self.user = UserFactory()
         self.today = datetime.date.today()
 
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
+
     def test_add_new_range_no_existing_ranges(self):
         """
         Test add new range no existing ranges
@@ -925,9 +947,154 @@ class TestAddNewRange(TestCase):
         self.assertEqual(new_range.user, self.user)
         self.assertEqual(new_range.contributions.count(), 0)
 
-    def test_add_new_range_existing_range_case_1(self):
+    def test_add_new_range_case_1_1_same_as_existing_one(self):
         """
-        Case 1: New range is a subset of existing range
+        Case 1.1: Test add new range same as existing one
+        should return the existing range
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=365),
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=goal,
+            percentage=100,
+            date_range=contribution_range,
+        )
+        ranges = ContributionRange.add_new_range(
+            self.user, goal.start_date, goal.expected_completion_date
+        )
+        self.assertEqual(len(ranges), 1)
+        self.assertEqual(ranges[0].start_date, contribution_range.start_date)
+        self.assertEqual(ranges[0].end_date, contribution_range.end_date)
+        self.assertEqual(ranges[0].contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                ranges[0].contributions.get(),
+            )
+        )
+
+    def test_add_new_range_case_1_2_same_start_date(self):
+        """
+        Case 1.2: Test add new range start date is same as existing one
+        end date is after.
+        Should return 2 ranges
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=365),
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=goal,
+            percentage=100,
+            date_range=contribution_range,
+        )
+        ranges = ContributionRange.add_new_range(
+            self.user, goal.start_date, goal.start_date + datetime.timedelta(days=30)
+        )
+        self.assertEqual(len(ranges), 2)
+        new_range = ranges[0]
+        self.assertEqual(new_range.start_date, goal.start_date)
+        self.assertEqual(
+            new_range.end_date, goal.start_date + datetime.timedelta(days=30)
+        )
+        self.assertEqual(new_range.user, self.user)
+        self.assertEqual(new_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                new_range.contributions.get(),
+            )
+        )
+        old_range_shifted_right = ranges[1]
+        self.assertEqual(
+            old_range_shifted_right.start_date,
+            goal.start_date + datetime.timedelta(days=31),
+        )
+        self.assertEqual(
+            old_range_shifted_right.end_date, goal.expected_completion_date
+        )
+        self.assertEqual(old_range_shifted_right.user, self.user)
+        self.assertEqual(old_range_shifted_right.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                old_range_shifted_right.contributions.get(),
+            )
+        )
+
+    def test_add_new_range_case_1_3_same_end_date(self):
+        """
+        Case 1.3: Test add new range end date is same as existing one
+        start date is before.
+        Should return 2 ranges
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=365),
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=goal,
+            percentage=100,
+            date_range=contribution_range,
+        )
+        ranges = ContributionRange.add_new_range(
+            self.user,
+            goal.start_date + datetime.timedelta(days=40),
+            goal.expected_completion_date,
+        )
+        self.assertEqual(len(ranges), 2)
+        old_range_shifted_left = ranges[0]
+        self.assertEqual(old_range_shifted_left.start_date, goal.start_date)
+        self.assertEqual(
+            old_range_shifted_left.end_date,
+            goal.start_date + datetime.timedelta(days=39),
+        )
+        self.assertEqual(old_range_shifted_left.user, self.user)
+        self.assertEqual(old_range_shifted_left.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                old_range_shifted_left.contributions.get(),
+            )
+        )
+        new_range = ranges[1]
+        self.assertEqual(
+            new_range.start_date,
+            goal.start_date + datetime.timedelta(days=40),
+        )
+        self.assertEqual(new_range.end_date, goal.expected_completion_date)
+        self.assertEqual(new_range.user, self.user)
+        self.assertEqual(new_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                new_range.contributions.get(),
+            )
+        )
+
+    def test_add_new_range_existing_range_case_1_4(self):
+        """
+        Case 1.4: New range is a subset of existing range
         """
         goal = GoalFactory(
             start_date=self.today - datetime.timedelta(days=365),
@@ -1020,6 +1187,61 @@ class TestAddNewRange(TestCase):
             old_range_shifted_right.end_date, goal.expected_completion_date
         )
         self.assertEqual(old_range_shifted_right.user, self.user)
+
+    def test_add_new_range_case_2_same_start_date(self):
+        """
+        Case 2: Test add new range start date is same as existing one
+        end date is before.
+        Should return 2 ranges
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=365),
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=goal,
+            percentage=100,
+            date_range=contribution_range,
+        )
+        ranges = ContributionRange.add_new_range(
+            self.user, goal.start_date, goal.start_date + datetime.timedelta(days=30)
+        )
+        self.assertEqual(len(ranges), 2)
+        new_range = ranges[0]
+        self.assertEqual(new_range.start_date, goal.start_date)
+        self.assertEqual(
+            new_range.end_date, goal.start_date + datetime.timedelta(days=30)
+        )
+        self.assertEqual(new_range.user, self.user)
+        self.assertEqual(new_range.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                new_range.contributions.get(),
+            )
+        )
+        old_range_shifted_right = ranges[1]
+        self.assertEqual(
+            old_range_shifted_right.start_date,
+            goal.start_date + datetime.timedelta(days=31),
+        )
+        self.assertEqual(
+            old_range_shifted_right.end_date, goal.expected_completion_date
+        )
+        self.assertEqual(old_range_shifted_right.user, self.user)
+        self.assertEqual(old_range_shifted_right.contributions.count(), 1)
+        self.assertTrue(
+            compare_contributions(
+                contribution,
+                old_range_shifted_right.contributions.get(),
+            )
+        )
 
     def test_add_new_range_existing_range_case_3(self):
         """
@@ -1273,8 +1495,6 @@ class TestAddNewRange(TestCase):
             percentage=100,
             date_range=contribution_range1,
         )
-        goal1_month = goal1.start_date.month
-        # goal2_end_date = goal
         goal2 = GoalFactory(
             start_date=self.today - datetime.timedelta(days=365),
             expected_completion_date=goal1.start_date - datetime.timedelta(days=1),

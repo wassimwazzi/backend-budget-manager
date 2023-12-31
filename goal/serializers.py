@@ -7,21 +7,15 @@ class GoalContributionSerializer(serializers.ModelSerializer):
     Goal Contribution serializer
     """
 
-    start_date = serializers.DateField(
-        input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m"
-    )
-
     class Meta:
         model = GoalContribution
         fields = (
             "id",
             "amount",
-            "start_date",
-            "end_date",
             "goal",
             "percentage",
         )
-        read_only_fields = ("id", "end_date", "goal", "amount")
+        read_only_fields = ("id", "goal", "amount")
 
 
 class GoalSerializer(serializers.ModelSerializer):
