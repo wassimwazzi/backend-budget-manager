@@ -134,16 +134,17 @@ class Goal(models.Model):
         self.full_clean()  # validate model
         super().save(*args, **kwargs)
 
-    def get_progress(self, percentage=False):
+    @property
+    def progress(self):
+        return self.total_contributed / self.amount * 100
+    
+    @property
+    def total_contributed(self):
         """
-        Calculate the progress of the goal.
-        For each contribution, calculate the amount contributed to the goal.
-        Then, sum all the contributions.
+        Calculate the total amount contributed to the goal.
         """
         contributions = GoalContribution.objects.filter(goal=self)
         total_contribution = sum(c.contribution for c in contributions)
-        if percentage:
-            return total_contribution / self.amount * 100
         return total_contribution
 
     @property

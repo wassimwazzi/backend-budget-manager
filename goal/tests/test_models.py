@@ -272,7 +272,7 @@ class TestGoalProgress(TestCase):
         """
         Test progress is 0 if no contributions
         """
-        self.assertEqual(self.goal.get_progress(), 0)
+        self.assertEqual(self.goal.total_contributed, 0)
 
     def test_sums_up_contributions(self):
         """
@@ -300,7 +300,7 @@ class TestGoalProgress(TestCase):
             percentage=100,
             date_range=range2,
         )
-        self.assertEqual(self.goal.get_progress(), 1000)
+        self.assertEqual(self.goal.total_contributed, 1000)
 
     def test_progress_as_percentage(self):
         """
@@ -328,7 +328,7 @@ class TestGoalProgress(TestCase):
             percentage=100,
             date_range=range2,
         )
-        self.assertEqual(self.goal.get_progress(percentage=True), 100)
+        self.assertEqual(self.goal.progress, 100)
 
     def test_percentage_over_100(self):
         """
@@ -357,7 +357,7 @@ class TestGoalProgress(TestCase):
             percentage=100,
             date_range=range2,
         )
-        self.assertEqual(self.goal.get_progress(percentage=True), 200)
+        self.assertEqual(self.goal.progress, 200)
 
 
 class TestGoalContributionModel(TestCase):

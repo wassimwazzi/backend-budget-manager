@@ -57,16 +57,6 @@ class GoalSerializer(serializers.ModelSerializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1)
     contributions = GoalContributionSerializer(many=True, read_only=True)
 
-    def to_representation(self, instance):
-        data = super(GoalSerializer, self).to_representation(instance)
-        if not "contributions" in self.context:
-            return data
-        contributions = self.context["contributions"]
-        data["contributions"] = GoalContributionSerializer(
-            contributions, many=True
-        ).data
-        return data
-
     class Meta:
         model = Goal
         fields = (
@@ -74,6 +64,7 @@ class GoalSerializer(serializers.ModelSerializer):
             "amount",
             "expected_completion_date",
             "actual_completion_date",
+            "progress",
             "type",
             "description",
             "status",
