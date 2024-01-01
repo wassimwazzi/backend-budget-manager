@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Goal, GoalContribution, ContributionRange
 
+
 class GoalSmallSerializer(serializers.ModelSerializer):
     """
     Goal serializer
@@ -21,8 +22,6 @@ class GoalContributionSerializer(serializers.ModelSerializer):
     Goal Contribution serializer
     """
 
-    start_date = serializers.SerializerMethodField()
-    end_date = serializers.SerializerMethodField()
     goal = GoalSmallSerializer(read_only=True)
 
     class Meta:
@@ -31,17 +30,11 @@ class GoalContributionSerializer(serializers.ModelSerializer):
             "id",
             "amount",
             "goal",
-            "start_date",
-            "end_date",
+            # "start_date",
+            # "end_date",
             "percentage",
         )
         read_only_fields = ("id", "goal", "amount")
-
-    def get_start_date(self, obj):
-        return obj.date_range.start_date
-
-    def get_end_date(self, obj):
-        return obj.date_range.end_date
 
 
 class ContributionRangeSerializer(serializers.ModelSerializer):

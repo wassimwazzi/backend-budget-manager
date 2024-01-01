@@ -226,7 +226,7 @@ class ContributionRange(models.Model):
         with transaction.atomic():
             self.contributions.all().delete()
             for contribution in contributions:
-                goal = Goal.objects.get(id=contribution["goal"])
+                goal = Goal.objects.get(id=contribution["goal"]["id"])
                 GoalContribution.objects.create(
                     goal=goal,
                     percentage=contribution["percentage"],

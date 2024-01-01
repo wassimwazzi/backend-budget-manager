@@ -6,6 +6,7 @@ from users.user_factory import UserFactory
 from .factories import GoalFactory, GoalContributionFactory, ContributionRangeFactory
 from ..models import GoalContribution, Goal, ContributionRange
 from ..signals import on_goal_create
+from ..serializers import GoalSmallSerializer
 from transaction.tests.factories import TransactionFactory
 from transaction.tests.factories import CategoryFactory
 
@@ -1650,12 +1651,12 @@ class TestUpdateContributions(TestCase):
         contribution_range.update_contributions(
             [
                 {
-                    "goal": goal2.id,
+                    "goal": GoalSmallSerializer(goal2).data,
                     "percentage": 50,
                     "amount": 200,
                 },
                 {
-                    "goal": self.goal.id,
+                    "goal": GoalSmallSerializer(self.goal).data,
                     "percentage": 50,
                     "amount": 100,
                 },
@@ -1691,12 +1692,12 @@ class TestUpdateContributions(TestCase):
             contribution_range.update_contributions(
                 [
                     {
-                        "goal": goal2.id,
+                        "goal": GoalSmallSerializer(goal2).data,
                         "percentage": 100,
                         "amount": 200,
                     },
                     {
-                        "goal": self.goal.id,
+                        "goal": GoalSmallSerializer(self.goal).data,
                         "percentage": 50,
                         "amount": 100,
                     },

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from .serializers import (
     GoalSerializer,
     ContributionRangeSerializer,
+    GoalContributionSerializer,
 )
 from .models import Goal, ContributionRange
 from queryset_mixin import QuerysetMixin
@@ -44,7 +45,7 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
         result = []
         # FIXME: This should be in a transaction
         try:
-            for contribution_range in request.data.get("contribution_ranges", []):
+            for contribution_range in request.data:
                 contribution_range_obj = ContributionRange.objects.get(
                     id=contribution_range["id"]
                 )
@@ -53,7 +54,9 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
                         {"error": "contributions is required for all ranges"},
                         status=400,
                     )
-                contributions = contribution_range["contributions"]
+                contributions = GoalContributionSerializer(
+                    contribution_range["contributions"], many=True
+                ).data
                 contribution_range_obj.update_contributions(contributions)
                 contribution_range_obj.refresh_from_db()
                 result.append(contribution_range_obj)
