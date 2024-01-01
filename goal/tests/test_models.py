@@ -1650,12 +1650,12 @@ class TestUpdateContributions(TestCase):
         contribution_range.update_contributions(
             [
                 {
-                    "goal": goal2,
+                    "goal": goal2.id,
                     "percentage": 50,
                     "amount": 200,
                 },
                 {
-                    "goal": self.goal,
+                    "goal": self.goal.id,
                     "percentage": 50,
                     "amount": 100,
                 },
@@ -1691,12 +1691,12 @@ class TestUpdateContributions(TestCase):
             contribution_range.update_contributions(
                 [
                     {
-                        "goal": goal2,
+                        "goal": goal2.id,
                         "percentage": 100,
                         "amount": 200,
                     },
                     {
-                        "goal": self.goal,
+                        "goal": self.goal.id,
                         "percentage": 50,
                         "amount": 100,
                     },

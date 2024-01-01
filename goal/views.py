@@ -3,10 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .serializers import (
     GoalSerializer,
-    GoalContributionSerializer,
     ContributionRangeSerializer,
 )
-from .models import Goal, GoalContribution, ContributionRange
+from .models import Goal, ContributionRange
 from queryset_mixin import QuerysetMixin
 import django.core.exceptions
 

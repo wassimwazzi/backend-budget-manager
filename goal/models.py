@@ -145,7 +145,7 @@ class Goal(models.Model):
         if percentage:
             return total_contribution / self.amount * 100
         return total_contribution
-    
+
     @property
     def contribution_ranges(self):
         """
@@ -576,12 +576,22 @@ class GoalContribution(models.Model):
             .values("category__income")
             .annotate(total=models.Sum("amount"))
         )  # returns 2 rows, one for income and one for expenses
-        net_saved = 0
-        for i in transactions_by_type:
-            if i["category__income"]:
-                net_saved += i["total"]
-            else:
-                net_saved -= i["total"]
+        net_saved = next(
+            (
+                i["total"]
+                for i in transactions_by_type
+                if i["category__income"] and i["total"]
+            ),
+            0,
+        )
+        net_saved -= next(
+            (
+                i["total"]
+                for i in transactions_by_type
+                if not i["category__income"] and i["total"]
+            ),
+            0,
+        )
         return net_saved * decimal.Decimal(self.percentage / 100)
 
     class Meta:
