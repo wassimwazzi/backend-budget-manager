@@ -134,7 +134,8 @@ class Goal(models.Model):
         self.full_clean()  # validate model
         super().save(*args, **kwargs)
 
-    def finalize(self):
+
+    def finalize(self, redistribute_percentages=False):
         """
         Finalize the goal.
         - Set actual completion date to today
@@ -152,6 +153,10 @@ class Goal(models.Model):
             self.actual_completion_date = datetime.date.today()
             self.status = GoalStatus.COMPLETED
         self.save()
+        if redistribute_percentages:
+            for contribution_range in self.contribution_ranges:
+                contribution_range.distribute_remaining_percentages()
+            
 
     @property
     def is_finalized(self):

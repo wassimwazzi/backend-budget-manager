@@ -64,3 +64,12 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
             return Response(serializer.data)
         except django.core.exceptions.ValidationError as e:
             return Response(e, status=400)
+
+    @action(detail=True, methods=["post"])
+    def finalize(self, request, pk=None):
+        goal = self.get_object()
+        redistribute_percentages = (
+            request.data.get("redistribute_percentages") == "true"
+        )
+        goal.finalize(redistribute_percentages)
+        return Response(GoalSerializer(goal).data)
