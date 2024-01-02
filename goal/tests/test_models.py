@@ -360,6 +360,142 @@ class TestGoalProgress(TestCase):
         self.assertEqual(self.goal.progress, 100)
 
 
+class TestFinalizeGoal(TestCase):
+    def setUp(self):
+        post_save.disconnect(sender=Goal, receiver=on_goal_create)
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+        self.last_year = self.today.replace(year=self.today.year - 1)
+        self.goal = GoalFactory(
+            amount=1000,
+            expected_completion_date=self.next_year,
+            start_date=self.last_year,
+            user=self.user,
+        )
+
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
+
+    def test_finalize_goal(self):
+        """
+        Test finalize goal
+        """
+        TransactionFactory(
+            user=self.user,
+            amount=2000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        range1 = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            goal=self.goal,
+            percentage=100,
+            date_range=range1,
+        )
+        self.goal.finalize()
+        self.assertEqual(self.goal.status, "COMPLETED")
+        self.assertEqual(self.goal.actual_completion_date, self.today)
+        self.assertEqual(self.goal.total_contributed, 1000)
+        self.assertEqual(self.goal.contributions.count(), 1)
+        contribution.refresh_from_db()
+        self.assertEqual(contribution.amount, 1000)
+
+    def test_finalize_goal_with_multiple_contributions(self):
+        """
+        Test finalize goal with multiple contributions
+        """
+        TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.last_year,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        range1 = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal.start_date + datetime.timedelta(days=31),
+            user=self.user,
+        )
+        range2 = ContributionRangeFactory(
+            start_date=self.goal.start_date + datetime.timedelta(days=32),
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution1 = GoalContributionFactory(
+            goal=self.goal,
+            percentage=50,
+            date_range=range1,
+        )
+        contribution2 = GoalContributionFactory(
+            goal=self.goal,
+            percentage=100,
+            date_range=range2,
+        )
+        self.goal.finalize()
+        self.assertEqual(self.goal.status, "COMPLETED")
+        self.assertEqual(self.goal.actual_completion_date, self.today)
+        self.assertEqual(self.goal.total_contributed, 1000)
+        self.assertEqual(self.goal.contributions.count(), 2)
+        contribution1.refresh_from_db()
+        contribution2.refresh_from_db()
+        self.assertEqual(contribution1.amount, 500)
+        self.assertEqual(contribution2.amount, 500)
+
+    def test_finalize_goal_limit_reached(self):
+        """
+        Test finalize goal limit reached
+        """
+        TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        TransactionFactory(
+            user=self.user,
+            amount=1000,
+            date=self.goal.start_date,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        range1 = ContributionRangeFactory(
+            start_date=self.goal.start_date,
+            end_date=self.goal.start_date + datetime.timedelta(days=31),
+            user=self.user,
+        )
+        range2 = ContributionRangeFactory(
+            start_date=self.goal.start_date + datetime.timedelta(days=32),
+            end_date=self.goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution1 = GoalContributionFactory(
+            goal=self.goal,
+            percentage=100,
+            date_range=range1,
+        )
+        contribution2 = GoalContributionFactory(
+            goal=self.goal,
+            percentage=100,
+            date_range=range2,
+        )
+        self.goal.finalize()
+        self.assertEqual(self.goal.total_contributed, 1000)
+        self.assertEqual(self.goal.contributions.count(), 2)
+        contribution1.refresh_from_db()
+        contribution2.refresh_from_db()
+        self.assertEqual(contribution1.amount, 1000)
+        self.assertEqual(contribution2.amount, 0)
+
+
 class TestGoalContributionModel(TestCase):
     def setUp(self):
         post_save.disconnect(sender=Goal, receiver=on_goal_create)
@@ -598,6 +734,30 @@ class TestGoalContributionModel(TestCase):
                 date_range=contribution_range,
             )
 
+    def test_cannot_update_if_goal_is_finalized(self):
+        """
+        Test cannot update if goal is finalized
+        """
+        goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.next_year,
+            user=self.user,
+        )
+        contribution_range = ContributionRangeFactory(
+            start_date=goal.start_date,
+            end_date=goal.expected_completion_date,
+            user=self.user,
+        )
+        contribution = GoalContributionFactory(
+            amount=1000,
+            goal=goal,
+            date_range=contribution_range,
+        )
+        goal.finalize()
+        with self.assertRaises(django.core.exceptions.ValidationError):
+            contribution.percentage = 50
+            contribution.save()
+
 
 class TestCalculateContributionAmount(TestCase):
     def setUp(self):
@@ -768,6 +928,77 @@ class TestCalculateContributionAmount(TestCase):
             category=CategoryFactory(income=False, user=self.user),
         )
         self.assertEqual(contribution.contribution, 1000)
+
+
+class TestFinalizeContribution(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.goal = GoalFactory(
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=365),
+            user=self.user,
+        )
+        self.contribution = self.goal.contributions.get()
+
+    def test_finalize_contribution_no_transactions(self):
+        """
+        Test finalize contribution
+        """
+        old_percentage = self.contribution.percentage
+        remaining_amount = self.goal.amount
+        self.contribution.finalize(remaining_amount)
+        self.contribution.refresh_from_db()
+        self.assertEqual(self.contribution.amount, 0)
+        self.assertEqual(self.contribution.percentage, old_percentage)
+
+    def test_finalize_contribution(self):
+        TransactionFactory(
+            user=self.user,
+            amount=self.goal.amount,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        old_percentage = self.contribution.percentage
+        remaining_amount = self.goal.amount
+        self.contribution.finalize(remaining_amount)
+        self.contribution.refresh_from_db()
+        self.assertEqual(self.contribution.amount, self.goal.amount)
+        self.assertEqual(self.contribution.percentage, old_percentage)
+
+    def test_finalize_contribution_amount_larger_than_remaining(self):
+        """
+        Test finalize contribution amount larger than remaining
+        """
+        TransactionFactory(
+            user=self.user,
+            amount=self.goal.amount * 2,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        old_percentage = self.contribution.percentage
+        remaining_amount = self.goal.amount
+        self.contribution.finalize(remaining_amount)
+        self.contribution.refresh_from_db()
+        self.assertEqual(self.contribution.amount, self.goal.amount)
+        self.assertEqual(self.contribution.percentage, old_percentage / 2)
+
+    def test_finalize_contribution_amount_smaller_than_remaining(self):
+        """
+        Test finalize contribution amount smaller than remaining
+        """
+        TransactionFactory(
+            user=self.user,
+            amount=self.goal.amount / 2,
+            date=self.today,
+            category=CategoryFactory(income=True, user=self.user),
+        )
+        old_percentage = self.contribution.percentage
+        remaining_amount = self.goal.amount
+        self.contribution.finalize(remaining_amount)
+        self.contribution.refresh_from_db()
+        self.assertEqual(self.contribution.amount, self.goal.amount / 2)
+        self.assertEqual(self.contribution.percentage, old_percentage)
 
 
 class TestContributionRangeModel(TestCase):
@@ -1708,3 +1939,86 @@ class TestUpdateContributions(TestCase):
         self.assertEqual(goal_contribution.percentage, 100)
         self.assertEqual(goal2_contribution.percentage, 0)
         self.assertEqual(contribution_range.contributions.count(), 2)
+
+
+class TestDistributePercentages(TestCase):
+    def setUp(self):
+        post_save.disconnect(sender=Goal, receiver=on_goal_create)
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+        self.next_year = self.today.replace(year=self.today.year + 1)
+
+    def tearDown(self):
+        post_save.connect(sender=Goal, receiver=on_goal_create)
+
+    @staticmethod
+    def create_contributions(contribution_range, num_contribution, percentages=None):
+        if not percentages:
+            percentages = [100 / num_contribution] * num_contribution
+        for i in range(num_contribution):
+            GoalContributionFactory(
+                goal=GoalFactory(
+                    start_date=contribution_range.start_date,
+                    expected_completion_date=contribution_range.end_date,
+                    user=contribution_range.user,
+                ),
+                percentage=percentages[i],
+                date_range=contribution_range,
+            )
+
+    def test_distribute_percentages_nothing_to_do(self):
+        """
+        Test distribute percentages
+        """
+        contribution_range = ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        self.create_contributions(contribution_range, 5, [20, 20, 20, 20, 20])
+        contribution_range.distribute_remaining_percentages()
+        self.assertEqual(contribution_range.contributions.count(), 5)
+        for contribution in contribution_range.contributions.all():
+            self.assertEqual(contribution.percentage, 20)
+
+    def test_distribute_percentages(self):
+        """
+        Test distribute percentages
+        """
+        contribution_range = ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        TestDistributePercentages.create_contributions(
+            contribution_range, 5, [20, 20, 20, 20, 0]
+        )
+        contribution_range.distribute_remaining_percentages()
+        self.assertEqual(contribution_range.contributions.count(), 5)
+        contributions = contribution_range.contributions.all().order_by("percentage")
+        self.assertEqual(contributions[0].percentage, 4)
+        for i in range(1, 5):
+            self.assertEqual(contributions[i].percentage, 24)
+
+    def test_does_not_update_finalized_goal_contributions(self):
+        """
+        Test distribute percentages
+        """
+        contribution_range = ContributionRangeFactory(
+            start_date=self.today,
+            end_date=self.next_year,
+            user=self.user,
+        )
+        TestDistributePercentages.create_contributions(contribution_range, 2)
+        contribution = contribution_range.contributions.first()
+        contribution2 = contribution_range.contributions.last()
+        goal = contribution.goal
+        contribution.percentage = 25
+        contribution.save()
+        goal.status = "COMPLETED"
+        goal.save()
+        contribution_range.distribute_remaining_percentages()
+        contribution.refresh_from_db()
+        self.assertEqual(contribution.percentage, 25)
+        contribution2.refresh_from_db()
+        self.assertEqual(contribution2.percentage, 75)

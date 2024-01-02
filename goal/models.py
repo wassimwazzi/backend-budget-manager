@@ -134,6 +134,22 @@ class Goal(models.Model):
         self.full_clean()  # validate model
         super().save(*args, **kwargs)
 
+    def finalize(self):
+        """
+        Finalize the goal.
+        - Set actual completion date to today
+        - Set status to completed
+        - Sets the amount on all contributions
+        """
+        total = 0
+        for contribution in self.contributions.all().order_by("date_range__start_date"):
+            amount = contribution.finalize(self.amount - total)
+            total += amount
+
+        self.actual_completion_date = datetime.date.today()
+        self.status = GoalStatus.COMPLETED
+        self.save()
+
     @property
     def progress(self):
         return self.total_contributed / self.amount * 100
@@ -143,15 +159,8 @@ class Goal(models.Model):
         """
         Calculate the total amount contributed to the goal.
         """
-        contributions = GoalContribution.objects.filter(goal=self)
-        total_contribution = 0
-        for contribution in contributions:
-            if total_contribution + contribution.contribution > self.amount:
-                contribution.amount = self.amount - total_contribution
-                contribution.save()
-                return self.amount
-            total_contribution += contribution.contribution
-        return total_contribution
+        total_contribution = sum(c.contribution for c in self.contributions.all())
+        return min(total_contribution, self.amount)
 
     @property
     def contribution_ranges(self):
@@ -240,6 +249,32 @@ class ContributionRange(models.Model):
                     date_range=self,
                 )
 
+    def distribute_remaining_percentages(self):
+        """
+        If the total percentage of all contributions in this range is less than 100,
+        distribute the remaining percentage to all contributions evenly, ensuring that total is 100, and percentages are integers
+        If contribution's goal is finalized, do not update its percentage
+        """
+        total_percentage = self.total_percentage
+        if total_percentage == 100:
+            return
+        remaining_percentage = 100 - total_percentage
+        non_finalized_contributions = self.contributions.exclude(
+            goal__status=GoalStatus.COMPLETED
+        )
+        num_contributions = non_finalized_contributions.count()
+        if num_contributions == 0:
+            return
+        per_contribution_percentage = remaining_percentage // num_contributions
+        remainder = remaining_percentage % num_contributions
+        for contribution in non_finalized_contributions:
+            percentage_to_add = per_contribution_percentage
+            if remainder > 0:
+                percentage_to_add += 1
+                remainder -= 1
+            contribution.percentage += percentage_to_add
+            contribution.save()
+
     @property
     def total_percentage(self):
         """
@@ -249,6 +284,34 @@ class ContributionRange(models.Model):
             self.contributions.aggregate(models.Sum("percentage"))["percentage__sum"]
             or 0
         )
+
+    @property
+    def transactions_net_amount(self):
+        """
+        Calculate the net saved amount of transactions in this range
+        """
+        transactions = (
+            Transaction.objects.filter(
+                user=self.user,
+                date__gte=self.start_date,
+                date__lte=self.end_date,
+            )
+            .values("category__income")
+            .annotate(total=models.Sum("amount"))
+        )  # returns 2 rows, one for income and one for expenses
+        net_saved = next(
+            (i["total"] for i in transactions if i["category__income"] and i["total"]),
+            0,
+        )
+        net_saved -= next(
+            (
+                i["total"]
+                for i in transactions
+                if not i["category__income"] and i["total"]
+            ),
+            0,
+        )
+        return net_saved
 
     @staticmethod
     def get_overlapping_ranges(user, start_date, end_date):
@@ -521,7 +584,7 @@ class GoalContribution(models.Model):
     )
 
     def __str__(self):
-        return f"{self.goal}: {self.amount}"
+        return f"{self.goal}: {self.date_range.start_date} - {self.date_range.end_date} - {self.percentage}%"
 
     def validate_percentage(self):
         """
@@ -556,14 +619,41 @@ class GoalContribution(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # if creating a new contribution
-            if self.goal.status == GoalStatus.COMPLETED:
-                raise django.core.exceptions.ValidationError(
-                    "Cannot create a contribution for a completed goal."
-                )
+        if self.goal.status == GoalStatus.COMPLETED:
+            raise django.core.exceptions.ValidationError(
+                "Goal is already completed. Cannot create or update contributions."
+            )
+        if (
+            self.date_range.contributions.filter(goal=self.goal)
+            .exclude(id=self.id)
+            .exists()
+        ):
+            raise django.core.exceptions.ValidationError(
+                "A contribution for this goal already exists for this date range."
+            )
         self.validate_range()
         self.validate_percentage()
         super().save(*args, **kwargs)
+
+    def finalize(self, remaining_amount):
+        """
+        Calculate the total for this contribution, and set the amount.
+        if total is larger than remaining_amount, set amount to remaining_amount.
+        If total is less than remaining_amount, lower the percentage to match the total.
+        """
+        total = self.contribution
+        if total > remaining_amount:
+            self.amount = remaining_amount
+            transactions_net_amount = total * 100 / self.percentage
+            # we want to find min_percent so transactions_net_amount * min_percent / 100 = remaining
+            minimum_required_percentage = (
+                remaining_amount * 100 / transactions_net_amount
+            )
+            self.percentage = min(minimum_required_percentage, self.percentage)
+        else:
+            self.amount = total
+        self.save()
+        return self.amount
 
     @property
     def contribution(self):
@@ -572,34 +662,9 @@ class GoalContribution(models.Model):
         """
         if self.amount:
             return self.amount
-        start_date = self.date_range.start_date
-        end_date = self.date_range.end_date
-        transactions_by_type = (
-            Transaction.objects.filter(
-                user=self.goal.user,
-                date__gte=start_date,
-                date__lte=end_date,
-            )
-            .values("category__income")
-            .annotate(total=models.Sum("amount"))
-        )  # returns 2 rows, one for income and one for expenses
-        net_saved = next(
-            (
-                i["total"]
-                for i in transactions_by_type
-                if i["category__income"] and i["total"]
-            ),
-            0,
+        return self.date_range.transactions_net_amount * decimal.Decimal(
+            self.percentage / 100
         )
-        net_saved -= next(
-            (
-                i["total"]
-                for i in transactions_by_type
-                if not i["category__income"] and i["total"]
-            ),
-            0,
-        )
-        return net_saved * decimal.Decimal(self.percentage / 100)
 
     class Meta:
         """
