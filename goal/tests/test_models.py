@@ -333,9 +333,8 @@ class TestGoalProgress(TestCase):
 
     def test_percentage_over_100(self):
         """
-        Test percentage over 100
+        Test percentage over 100, should max out at 100.
         """
-        # FIXME: contributions should max out at 100% of goal
         range1 = ContributionRangeFactory(
             start_date=self.goal.start_date,
             end_date=self.goal_midpoint,
@@ -358,7 +357,7 @@ class TestGoalProgress(TestCase):
             percentage=100,
             date_range=range2,
         )
-        self.assertEqual(self.goal.progress, 200)
+        self.assertEqual(self.goal.progress, 100)
 
 
 class TestGoalContributionModel(TestCase):

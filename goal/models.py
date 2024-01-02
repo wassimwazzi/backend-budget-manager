@@ -137,14 +137,20 @@ class Goal(models.Model):
     @property
     def progress(self):
         return self.total_contributed / self.amount * 100
-    
+
     @property
     def total_contributed(self):
         """
         Calculate the total amount contributed to the goal.
         """
         contributions = GoalContribution.objects.filter(goal=self)
-        total_contribution = sum(c.contribution for c in contributions)
+        total_contribution = 0
+        for contribution in contributions:
+            if total_contribution + contribution.contribution > self.amount:
+                contribution.amount = self.amount - total_contribution
+                contribution.save()
+                return self.amount
+            total_contribution += contribution.contribution
         return total_contribution
 
     @property

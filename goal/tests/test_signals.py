@@ -4,8 +4,6 @@ from django.test import TestCase
 from users.user_factory import UserFactory
 from .factories import GoalFactory, GoalContributionFactory, ContributionRangeFactory
 from ..models import GoalContribution, ContributionRange, Goal
-from transaction.tests.factories import TransactionFactory
-from transaction.tests.factories import CategoryFactory
 
 
 class TestOnGoalCreateSignal(TestCase):
@@ -85,3 +83,26 @@ class TestOnGoalCreateSignal(TestCase):
             + datetime.timedelta(days=365),
         )
         self.assertEqual(ContributionRange.objects.count(), 3)
+
+
+class TestOnGoalDeleteSignal(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+
+    def test_contribution_ranges_are_deleted_if_no_other_goals(self):
+        goal = GoalFactory(user=self.user)
+        self.assertEqual(ContributionRange.objects.count(), 1)
+        goal.delete()
+        self.assertEqual(ContributionRange.objects.count(), 0)
+
+    def test_contribution_ranges_are_not_deleted_if_other_goals(self):
+        goal = GoalFactory(user=self.user)
+        goal2 = GoalFactory(
+            user=self.user,
+            start_date=goal.start_date,
+            expected_completion_date=goal.expected_completion_date,
+        )
+        self.assertEqual(ContributionRange.objects.count(), 1)
+        goal.delete()
+        self.assertEqual(ContributionRange.objects.count(), 1)

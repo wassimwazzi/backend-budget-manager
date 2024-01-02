@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Goal, GoalContribution, ContributionRange
 
@@ -21,10 +21,22 @@ def on_goal_create(sender, instance, created, **kwargs):
     for r in ranges:
         # keep only ranges that are within the goal's date range
         if not (
-            r.start_date >= instance.start_date and r.end_date <= instance.expected_completion_date
+            r.start_date >= instance.start_date
+            and r.end_date <= instance.expected_completion_date
         ):
             continue
         remaining_percentage = 100 - r.total_percentage
         GoalContribution.objects.create(
             goal=instance, percentage=remaining_percentage, date_range=r
         )
+
+
+@receiver(post_delete, sender=Goal)
+def on_goal_delete(sender, instance, **kwargs):
+    """
+    Delete all contributions and ranges associated with goal
+    """
+    # find all ranges with no other contributions
+    contribution_ranges = ContributionRange.objects.filter(contributions__isnull=True)
+    # delete all ranges
+    contribution_ranges.delete()
