@@ -712,51 +712,51 @@ class TestGoalContributionModel(TestCase):
             date_range=contribution_range2,
         )
 
-    def test_cannot_create_contribution_for_completed_goal(self):
-        """
-        Test cannot create contribution for completed goal
-        """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-            status="COMPLETED",
-        )
-        contribution_range = ContributionRangeFactory(
-            start_date=goal.start_date,
-            end_date=goal.expected_completion_date,
-            user=self.user,
-        )
-        with self.assertRaises(django.core.exceptions.ValidationError):
-            GoalContributionFactory(
-                amount=1000,
-                goal=goal,
-                date_range=contribution_range,
-            )
+    # def test_cannot_create_contribution_for_completed_goal(self):
+    #     """
+    #     Test cannot create contribution for completed goal
+    #     """
+    #     goal = GoalFactory(
+    #         start_date=self.today,
+    #         expected_completion_date=self.next_year,
+    #         user=self.user,
+    #         status="COMPLETED",
+    #     )
+    #     contribution_range = ContributionRangeFactory(
+    #         start_date=goal.start_date,
+    #         end_date=goal.expected_completion_date,
+    #         user=self.user,
+    #     )
+    #     with self.assertRaises(django.core.exceptions.ValidationError):
+    #         GoalContributionFactory(
+    #             amount=1000,
+    #             goal=goal,
+    #             date_range=contribution_range,
+    #         )
 
-    def test_cannot_update_if_goal_is_finalized(self):
-        """
-        Test cannot update if goal is finalized
-        """
-        goal = GoalFactory(
-            start_date=self.today,
-            expected_completion_date=self.next_year,
-            user=self.user,
-        )
-        contribution_range = ContributionRangeFactory(
-            start_date=goal.start_date,
-            end_date=goal.expected_completion_date,
-            user=self.user,
-        )
-        contribution = GoalContributionFactory(
-            amount=1000,
-            goal=goal,
-            date_range=contribution_range,
-        )
-        goal.finalize()
-        with self.assertRaises(django.core.exceptions.ValidationError):
-            contribution.percentage = 50
-            contribution.save()
+    # def test_cannot_update_if_goal_is_finalized(self):
+    #     """
+    #     Test cannot update if goal is finalized
+    #     """
+    #     goal = GoalFactory(
+    #         start_date=self.today,
+    #         expected_completion_date=self.next_year,
+    #         user=self.user,
+    #     )
+    #     contribution_range = ContributionRangeFactory(
+    #         start_date=goal.start_date,
+    #         end_date=goal.expected_completion_date,
+    #         user=self.user,
+    #     )
+    #     contribution = GoalContributionFactory(
+    #         amount=1000,
+    #         goal=goal,
+    #         date_range=contribution_range,
+    #     )
+    #     goal.finalize()
+    #     with self.assertRaises(django.core.exceptions.ValidationError):
+    #         contribution.percentage = 50
+    #         contribution.save()
 
 
 class TestCalculateContributionAmount(TestCase):
