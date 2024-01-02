@@ -146,9 +146,19 @@ class Goal(models.Model):
             amount = contribution.finalize(self.amount - total)
             total += amount
 
-        self.actual_completion_date = datetime.date.today()
-        self.status = GoalStatus.COMPLETED
+        if total < self.amount:
+            self.status = GoalStatus.FAILED
+        else:
+            self.actual_completion_date = datetime.date.today()
+            self.status = GoalStatus.COMPLETED
         self.save()
+
+    @property
+    def is_finalized(self):
+        """
+        Check if goal is finalized
+        """
+        return self.status in [GoalStatus.COMPLETED, GoalStatus.FAILED]
 
     @property
     def progress(self):
@@ -259,10 +269,10 @@ class ContributionRange(models.Model):
         if total_percentage == 100:
             return
         remaining_percentage = 100 - total_percentage
-        non_finalized_contributions = self.contributions.exclude(
-            goal__status=GoalStatus.COMPLETED
-        )
-        num_contributions = non_finalized_contributions.count()
+        non_finalized_contributions = list(filter(
+            lambda x: not x.goal.is_finalized, self.contributions.all()
+        ))
+        num_contributions = len(non_finalized_contributions)
         if num_contributions == 0:
             return
         per_contribution_percentage = remaining_percentage // num_contributions
@@ -619,7 +629,7 @@ class GoalContribution(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        if self.goal.status == GoalStatus.COMPLETED:
+        if self.goal.is_finalized:
             raise django.core.exceptions.ValidationError(
                 "Goal is already completed. Cannot create or update contributions."
             )
