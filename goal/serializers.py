@@ -13,6 +13,7 @@ class GoalSmallSerializer(serializers.ModelSerializer):
             "id",
             "description",
             "status",
+            "is_finalized",
         )
         read_only_fields = ("id",)
 
