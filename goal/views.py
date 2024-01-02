@@ -68,8 +68,5 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def finalize(self, request, pk=None):
         goal = self.get_object()
-        redistribute_percentages = (
-            request.data.get("redistribute_percentages") == "true"
-        )
-        goal.finalize(redistribute_percentages)
+        goal.finalize(True)
         return Response(GoalSerializer(goal).data)

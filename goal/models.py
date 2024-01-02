@@ -635,10 +635,10 @@ class GoalContribution(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        if self.goal.is_finalized:
-            raise django.core.exceptions.ValidationError(
-                "Goal is already completed. Cannot create or update contributions."
-            )
+        # if self.goal.is_finalized:
+        #     raise django.core.exceptions.ValidationError(
+        #         "Goal is already completed. Cannot create or update contributions."
+        #     )
         if (
             self.date_range.contributions.filter(goal=self.goal)
             .exclude(id=self.id)
