@@ -142,20 +142,21 @@ class Goal(models.Model):
         - Set status to completed
         - Sets the amount on all contributions
         """
-        total = 0
-        for contribution in self.contributions.all().order_by("date_range__start_date"):
-            amount = contribution.finalize(self.amount - total)
-            total += amount
+        with transaction.atomic():
+            total = 0
+            for contribution in self.contributions.all().order_by("date_range__start_date"):
+                amount = contribution.finalize(self.amount - total)
+                total += amount
 
-        if total < self.amount:
-            self.status = GoalStatus.FAILED
-        else:
-            self.actual_completion_date = datetime.date.today()
-            self.status = GoalStatus.COMPLETED
-        self.save()
-        if redistribute_percentages:
-            for contribution_range in self.contribution_ranges:
-                contribution_range.distribute_remaining_percentages()
+            if total < self.amount:
+                self.status = GoalStatus.FAILED
+            else:
+                self.actual_completion_date = datetime.date.today()
+                self.status = GoalStatus.COMPLETED
+            self.save()
+            if redistribute_percentages:
+                for contribution_range in self.contribution_ranges:
+                    contribution_range.distribute_remaining_percentages()
             
 
     @property
