@@ -82,7 +82,7 @@ class Goal(models.Model):
         self.expected_completion_date = self.expected_completion_date.replace(
             day=end_completion_date
         )
-        if self.expected_completion_date < datetime.date.today():
+        if self.expected_completion_date < datetime.date.today() and not self.is_finalized:
             raise django.core.exceptions.ValidationError(
                 "Completion date must be in the future."
             )
