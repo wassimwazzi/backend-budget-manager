@@ -6,7 +6,8 @@ from .serializers import (
     ContributionRangeSerializer,
     GoalContributionSerializer,
 )
-from .models import Goal, ContributionRange
+from .models import Goal, ContributionRange, GoalStatus
+import datetime
 from queryset_mixin import QuerysetMixin
 import django.core.exceptions
 
@@ -27,12 +28,31 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
     def create(self, request):
         serializer = GoalSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
+        if serializer.validated_data["start_date"] < datetime.date.today():
+            serializer.validated_data["status"] = GoalStatus.IN_PROGRESS
+        else:
+            serializer.validated_data["status"] = GoalStatus.PENDING
         try:
             serializer.save()
         except django.core.exceptions.ValidationError as e:
             return Response(e, status=400)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=201, headers=headers)
+    
+    def update(self, request, pk=None, partial=False):
+        goal = self.get_object()
+        serializer = GoalSerializer(goal, data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        if serializer.validated_data["start_date"] < datetime.date.today():
+            serializer.validated_data["status"] = GoalStatus.IN_PROGRESS
+        else:
+            serializer.validated_data["status"] = GoalStatus.PENDING
+        try:
+            serializer.save()
+        except django.core.exceptions.ValidationError as e:
+            return Response(e, status=400)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=200, headers=headers)
 
     @action(detail=True, methods=["get"])
     def contribution_ranges(self, request, pk=None):
