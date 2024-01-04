@@ -22,15 +22,14 @@ class TestGoalView(TestCase):
         goal = GoalFactory(user=self.user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertDictEqual(response.data["results"][0], GoalSerializer(goal).data)
+        self.assertDictEqual(response.data[0], GoalSerializer(goal).data)
 
     def test_goal_list_gets_only_current_user_goals(self):
         user2 = UserFactory()
         GoalFactory(user=user2)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 0)
+        self.assertEqual(len(response.data), 0)
 
     def test_goal_api_create(self):
         goal_data = {
@@ -79,7 +78,6 @@ class TestGoalView(TestCase):
         }
         response = self.client.post(self.url, goal_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
 
     def test_goal_api_patch(self):
         goal = GoalFactory(user=self.user)
