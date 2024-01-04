@@ -76,6 +76,12 @@ class Goal(models.Model):
         return f"{self.description} - {self.type}"
 
     def validate_completion_date(self):
+        end_completion_date = calendar.monthrange(
+            self.expected_completion_date.year, self.expected_completion_date.month
+        )[1]
+        self.expected_completion_date = self.expected_completion_date.replace(
+            day=end_completion_date
+        )
         if self.expected_completion_date < datetime.date.today():
             raise django.core.exceptions.ValidationError(
                 "Completion date must be in the future."
@@ -84,12 +90,6 @@ class Goal(models.Model):
             raise django.core.exceptions.ValidationError(
                 "Completion date must be after start date."
             )
-        end_completion_date = calendar.monthrange(
-            self.expected_completion_date.year, self.expected_completion_date.month
-        )[1]
-        self.expected_completion_date = self.expected_completion_date.replace(
-            day=end_completion_date
-        )
 
     def validate_actual_completion_date(self):
         if not self.actual_completion_date:
@@ -134,7 +134,6 @@ class Goal(models.Model):
         self.full_clean()  # validate model
         super().save(*args, **kwargs)
 
-
     def finalize(self, redistribute_percentages=False):
         """
         Finalize the goal.
@@ -144,7 +143,9 @@ class Goal(models.Model):
         """
         with transaction.atomic():
             total = 0
-            for contribution in self.contributions.all().order_by("date_range__start_date"):
+            for contribution in self.contributions.all().order_by(
+                "date_range__start_date"
+            ):
                 amount = contribution.finalize(self.amount - total)
                 total += amount
 
@@ -157,7 +158,6 @@ class Goal(models.Model):
             if redistribute_percentages:
                 for contribution_range in self.contribution_ranges:
                     contribution_range.distribute_remaining_percentages()
-            
 
     @property
     def is_finalized(self):
@@ -275,9 +275,9 @@ class ContributionRange(models.Model):
         if total_percentage == 100:
             return
         remaining_percentage = 100 - total_percentage
-        non_finalized_contributions = list(filter(
-            lambda x: not x.goal.is_finalized, self.contributions.all()
-        ))
+        non_finalized_contributions = list(
+            filter(lambda x: not x.goal.is_finalized, self.contributions.all())
+        )
         num_contributions = len(non_finalized_contributions)
         if num_contributions == 0:
             return
