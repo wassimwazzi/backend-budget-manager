@@ -84,7 +84,7 @@ class QuerysetMixin:
                 )
 
             queryset = queryset.order_by(
-                f"{'' if sort_order == 'asc' else '-'}{sort_field}"
+                f"{'' if sort_order == 'asc' else '-'}{sort_field}", 'id' # prevent duplicates in pagination https://stackoverflow.com/questions/5044464/django-pagination-is-repeating-results
             )
 
         return queryset
