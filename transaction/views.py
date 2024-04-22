@@ -1,10 +1,12 @@
 import calendar
+from rest_framework.views import APIView
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.http import HttpResponse
 import rest_framework.serializers as serializers
 import django.db.models as models
-import django.db.models.functions as functions
+import csv
 from .serializers import TransactionSerializer
 from .models import Transaction
 from category.models import Category
@@ -244,3 +246,48 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         if balance["balance"] is None:
             balance["balance"] = 0
         return Response(balance, status=200)
+
+class ExportTransactionsViewSet(QuerysetMixin, APIView):
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the transactions
+        for the currently authenticated user.
+        """
+        user = self.request.user
+        queryset = Transaction.objects.filter(user=user)
+        return self.get_filtered_queryet(queryset)
+
+    def get(self, request):
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="transactions.csv"'
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "code",
+                "income",
+                "expense",
+                "currency",
+                "date",
+                "description",
+                "category",
+                "inferred_category",
+            ]
+        )
+        transactions = self.get_queryset()
+        for transaction in transactions:
+            income = transaction.amount if transaction.category.income else ""
+            expense = transaction.amount if not transaction.category.income else ""
+            writer.writerow(
+                [
+                    transaction.code,
+                    income,
+                    expense,
+                    transaction.currency.code,
+                    transaction.date,
+                    transaction.description,
+                    transaction.category.category,
+                    transaction.inferred_category,
+                ]
+            )
+        return response

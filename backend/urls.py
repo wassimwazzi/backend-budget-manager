@@ -40,4 +40,5 @@ urlpatterns = [
     path("signup/", SignUpView.as_view(), name="signup"),
     path("api/", include(router.urls)),
     path("api/token/", obtain_auth_token, name="token_obtain_pair"),
+    path("api/exports/transactions/", transaction.views.ExportTransactionsViewSet.as_view(), name="export_transactions"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
