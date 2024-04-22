@@ -29,12 +29,12 @@ SECRET_KEY = os.environ.get(
     default=secrets.token_urlsafe(nbytes=64),
 )
 # SECURITY WARNING: don't run with debug turned on in production!
-IS_HEROKU_APP = "DYNO" in os.environ and not "CI" in os.environ
+IS_PROD_APP = "PROD_APP" in os.environ and not "CI" in os.environ
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = not IS_HEROKU_APP
+DEBUG = not IS_PROD_APP
 
-if IS_HEROKU_APP:
+if IS_PROD_APP:
     ALLOWED_HOSTS = ["*"]
 else:
     ALLOWED_HOSTS = ["0.0.0.0", "localhost", "127.0.0.1"]
@@ -122,18 +122,33 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-if IS_HEROKU_APP:
-    # In production on Heroku the database configuration is derived from the `DATABASE_URL`
-    # environment variable by the dj-database-url package. `DATABASE_URL` will be set
-    # automatically by Heroku when a database addon is attached to your Heroku app. See:
-    # https://devcenter.heroku.com/articles/provisioning-heroku-postgres
-    # https://github.com/jazzband/dj-database-url
+# if IS_PROD_APP:
+#     # In production on Heroku the database configuration is derived from the `DATABASE_URL`
+#     # environment variable by the dj-database-url package. `DATABASE_URL` will be set
+#     # automatically by Heroku when a database addon is attached to your Heroku app. See:
+#     # https://devcenter.heroku.com/articles/provisioning-heroku-postgres
+#     # https://github.com/jazzband/dj-database-url
+#     DATABASES = {
+#         "default": dj_database_url.config(
+#             conn_max_age=600,
+#             conn_health_checks=True,
+#             ssl_require=True,
+#         ),
+#     }
+if IS_PROD_APP:
+    # Connect to azure SQL
     DATABASES = {
-        "default": dj_database_url.config(
-            conn_max_age=600,
-            conn_health_checks=True,
-            ssl_require=True,
-        ),
+        "default": {
+            "ENGINE": "mssql",
+            "NAME": os.environ.get("DB_NAME"),
+            "USER": os.environ.get("DB_USER"),
+            "PASSWORD": os.environ.get("DB_PASSWORD"),
+            "HOST": os.environ.get("DB_HOST"),
+            "PORT": os.environ.get("DB_PORT"),
+            "OPTIONS": {
+                "driver": "ODBC Driver 18 for SQL Server",
+            },
+        }
     }
 else:
     # When running locally in development or in CI, a sqlite database file will be used instead
