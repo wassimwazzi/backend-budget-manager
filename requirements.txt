@@ -16,3 +16,6 @@ dj_database_url
 psycopg2-binary
 freezegun
 plaid-python
+# azure sql
+pyodbc
+mssql-django
