@@ -614,3 +614,86 @@ class TestSummarizeWithMonthParam(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["last_month"]["spend"], 300)
         self.assertEqual(response.data["last_month"]["income"], 500)
+
+
+class TestBalance(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = "/api/transactions/balance/"
+
+    def test_balance(self):
+        TransactionFactory(
+            user=self.user, category__income=False, amount=100, date=date(2021, 1, 1)
+        )
+        TransactionFactory(
+            user=self.user, category__income=False, amount=1000, date=date(2021, 1, 10)
+        )
+        TransactionFactory(
+            user=self.user, category__income=True, amount=300, date=date(2021, 1, 15)
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["balance"], -800)
+
+    def test_balance_no_transactions(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["balance"], 0)
+
+    def test_balance_only_income(self):
+        TransactionFactory(
+            user=self.user, category__income=True, amount=500, date=date(2021, 1, 15)
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["balance"], 500)
+
+    def test_balance_only_spend(self):
+        TransactionFactory(
+            user=self.user, category__income=False, amount=500, date=date(2021, 1, 15)
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["balance"], -500)
+
+    def test_balance_only_one_month(self):
+        TransactionFactory(
+            user=self.user, category__income=False, amount=100, date=date(2021, 1, 1)
+        )
+        TransactionFactory(
+            user=self.user, category__income=False, amount=200, date=date(2021, 1, 10)
+        )
+        TransactionFactory(
+            user=self.user, category__income=True, amount=500, date=date(2021, 1, 15)
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["balance"], 200)
+
+    def test_balance_multiple_months(self):
+        TransactionFactory(
+            user=self.user, category__income=False, amount=100, date=date(2021, 1, 1)
+        )
+        TransactionFactory(
+            user=self.user, category__income=False, amount=200, date=date(2021, 1, 10)
+        )
+        TransactionFactory(
+            user=self.user, category__income=True, amount=500, date=date(2021, 1, 15)
+        )
+        TransactionFactory(
+            user=self.user, category__income=False, amount=100, date=date(2021, 2, 1)
+        )
+        TransactionFactory(
+            user=self.user, category__income=False, amount=200, date=date(2021, 2, 9)
+        )
+        TransactionFactory(
+            user=self.user, category__income=True, amount=300, date=date(2021, 2, 16)
+        )
+        TransactionFactory(
+            user=self.user, category__income=True, amount=300, date=date(2021, 2, 26)
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["balance"], 500)

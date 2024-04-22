@@ -116,23 +116,42 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
             .order_by("-date__year", "-date__month")
         )
 
-        # Combine spend and income by month
-        response_data = [
-            {
-                "month": f"{month['date__year']}-{month['date__month']:02d}",
-                "spend": month["total"] if month["total"] is not None else 0,
-                "income": next(
-                    (
-                        income["total"]
-                        for income in income_by_month
-                        if income["date__year"] == month["date__year"]
-                        and income["date__month"] == month["date__month"]
-                    ),
-                    0,
+        # Get unique months from spend_by_month and income_by_month
+        months = {
+            (month["date__year"], month["date__month"]) for month in spend_by_month
+        }.union(
+            {(month["date__year"], month["date__month"]) for month in income_by_month}
+        )
+        # sort months by year and month
+        months = sorted(months, key=lambda x: (x[0], x[1]), reverse=True)
+
+        response_data = []
+        for month in months:
+            spend = next(
+                (
+                    month_spend["total"]
+                    for month_spend in spend_by_month
+                    if month_spend["date__year"] == month[0]
+                    and month_spend["date__month"] == month[1]
                 ),
-            }
-            for month in spend_by_month
-        ]
+                0,
+            )
+            income = next(
+                (
+                    month_income["total"]
+                    for month_income in income_by_month
+                    if month_income["date__year"] == month[0]
+                    and month_income["date__month"] == month[1]
+                ),
+                0,
+            )
+            response_data.append(
+                {
+                    "month": f"{month[0]}-{month[1]:02d}",
+                    "spend": spend,
+                    "income": income,
+                }
+            )
 
         return Response(response_data, status=200)
 
@@ -152,12 +171,16 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         total_spend = totals.filter(category__income=False).first()
         response = {
             "monthly_average": {
-                "income": total_income["total_amount"] / len(unique_months)
-                if total_income
-                else 0,
-                "spend": total_spend["total_amount"] / len(unique_months)
-                if total_spend
-                else 0,
+                "income": (
+                    total_income["total_amount"] / len(unique_months)
+                    if total_income
+                    else 0
+                ),
+                "spend": (
+                    total_spend["total_amount"] / len(unique_months)
+                    if total_spend
+                    else 0
+                ),
             }
         }
 
@@ -203,3 +226,21 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
             }
 
         return Response(response, status=200)
+
+    @action(detail=False, methods=["get"])
+    def balance(self, request):
+        queryset = self.get_queryset()
+        # if transaction's category is income, add amount to balance
+        # if transaction's category is spend, subtract amount from balance
+        balance = queryset.aggregate(
+            balance=models.Sum(
+                models.Case(
+                    models.When(category__income=True, then=models.F("amount")),
+                    default=-models.F("amount"),
+                    output_field=models.DecimalField(),
+                )
+            )
+        )
+        if balance["balance"] is None:
+            balance["balance"] = 0
+        return Response(balance, status=200)
