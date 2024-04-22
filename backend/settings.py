@@ -122,35 +122,31 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
-# if IS_PROD_APP:
-#     # In production on Heroku the database configuration is derived from the `DATABASE_URL`
-#     # environment variable by the dj-database-url package. `DATABASE_URL` will be set
-#     # automatically by Heroku when a database addon is attached to your Heroku app. See:
-#     # https://devcenter.heroku.com/articles/provisioning-heroku-postgres
-#     # https://github.com/jazzband/dj-database-url
-#     DATABASES = {
-#         "default": dj_database_url.config(
-#             conn_max_age=600,
-#             conn_health_checks=True,
-#             ssl_require=True,
-#         ),
-#     }
 if IS_PROD_APP:
-    # Connect to azure SQL
-    DATABASES = {
-        "default": {
-            "ENGINE": "mssql",
-            "NAME": os.environ.get("DB_NAME"),
-            "USER": os.environ.get("DB_USER"),
-            "PASSWORD": os.environ.get("DB_PASSWORD"),
-            "HOST": os.environ.get("DB_HOST"),
-            "PORT": os.environ.get("DB_PORT"),
-            "OPTIONS": {
-                "driver": "ODBC Driver 18 for SQL Server",
-            },
+    if "DATABASE_URL" in os.environ:
+        # use dj_database_url to parse the DATABASE_URL environment variable if it exists
+        DATABASES = {
+            "default": dj_database_url.config(
+                conn_max_age=600,
+                conn_health_checks=True,
+                ssl_require=True,
+            ),
         }
-    }
+    else:
+        # Connect to azure SQL
+        DATABASES = {
+            "default": {
+                "ENGINE": "mssql",
+                "NAME": os.environ.get("DB_NAME"),
+                "USER": os.environ.get("DB_USER"),
+                "PASSWORD": os.environ.get("DB_PASSWORD"),
+                "HOST": os.environ.get("DB_HOST"),
+                "PORT": os.environ.get("DB_PORT"),
+                "OPTIONS": {
+                    "driver": "ODBC Driver 18 for SQL Server",
+                },
+            }
+        }
 else:
     # When running locally in development or in CI, a sqlite database file will be used instead
     # to simplify initial setup. Longer term it's recommended to use Postgres locally too.
