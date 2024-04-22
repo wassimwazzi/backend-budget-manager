@@ -19,3 +19,6 @@ pyodbc
 mssql-django
 freezegun
 plaid-python
+# azure sql
+pyodbc
+mssql-django
