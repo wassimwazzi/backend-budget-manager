@@ -265,7 +265,8 @@ class ExportTransactionsViewSet(QuerysetMixin, APIView):
         writer.writerow(
             [
                 "code",
-                "amount",
+                "income",
+                "expense",
                 "currency",
                 "date",
                 "description",
@@ -275,10 +276,13 @@ class ExportTransactionsViewSet(QuerysetMixin, APIView):
         )
         transactions = self.get_queryset()
         for transaction in transactions:
+            income = transaction.amount if transaction.category.income else ""
+            expense = transaction.amount if not transaction.category.income else ""
             writer.writerow(
                 [
                     transaction.code,
-                    transaction.amount,
+                    income,
+                    expense,
                     transaction.currency.code,
                     transaction.date,
                     transaction.description,
