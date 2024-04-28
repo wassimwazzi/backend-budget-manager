@@ -63,6 +63,7 @@ MY_APPS = [
     "category",
     "currency",
     "fileupload",
+    "goal",
     "transaction",
 ]
 

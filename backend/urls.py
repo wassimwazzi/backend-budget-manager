@@ -22,6 +22,7 @@ from rest_framework import routers
 from rest_framework.authtoken.views import obtain_auth_token
 import category.views
 import currency.views
+from goal.views import GoalView
 import transaction.views
 import budget.views
 import fileupload.views
@@ -30,6 +31,7 @@ from users.views import SignUpView
 router = routers.DefaultRouter()
 router.register(r"categories", category.views.CategoryView, "categories")
 router.register(r"currencies", currency.views.CurrencyView, "currencies")
+router.register(r"goals", GoalView, "goals")
 router.register(r"transactions", transaction.views.TransactionView, "transactions")
 router.register(r"budgets", budget.views.BudgetView, "budgets")
 router.register(r"uploads", fileupload.views.FileUploadView, "uploads")
