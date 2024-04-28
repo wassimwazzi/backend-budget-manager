@@ -1,4 +1,5 @@
 import datetime
+import calendar
 import django.db.utils
 from django.db.models.signals import post_save
 from django.test import TestCase
@@ -130,7 +131,9 @@ class TestGoalModel(TestCase):
             description="Test Goal",
             user=self.user,
         )
-        self.assertEqual(goal.expected_completion_date, self.next_year.replace(day=31))
+        # get last day of month
+        last_day_of_month = calendar.monthrange(self.next_year.year, self.next_year.month)[1]
+        self.assertEqual(goal.expected_completion_date, self.next_year.replace(day=last_day_of_month))
 
     def test_goal_recurring_frequency_must_be_positive(self):
         """
