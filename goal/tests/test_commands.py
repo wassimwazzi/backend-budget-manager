@@ -44,8 +44,9 @@ class TestCreateGoals(TestCase):
             recurring=GoalRecurranceType.FIXED,
             reccuring_frequency=1,
             expected_completion_date=datetime.date.today(),
+            start_date=datetime.date.today() - datetime.timedelta(weeks=5),
         )
-        with freeze_time(goal.expected_completion_date + datetime.timedelta(months=1)):
+        with freeze_time(goal.expected_completion_date + datetime.timedelta(weeks=5)):
             call_command("create_goals", stdout=StringIO())
         self.assertEqual(Goal.objects.count(), 2)
         self.assertEqual(Goal.objects.filter(previous_goal=goal).count(), 1)
