@@ -19,3 +19,5 @@ plaid-python
 # azure sql
 pyodbc
 mssql-django
+freezegun
+python-dotenv
