@@ -65,6 +65,7 @@ MY_APPS = [
     "fileupload",
     "goal",
     "transaction",
+    "plaidapp",
 ]
 
 INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + MY_APPS
