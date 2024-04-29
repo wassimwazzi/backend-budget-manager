@@ -13,12 +13,11 @@ class Command(BaseCommand):
         )
         for goal in goals:
             if goal.expected_completion_date < datetime.date.today():
-                print(goal.progress)
                 goal.status = (
                     GoalStatus.COMPLETED if goal.progress == 100 else GoalStatus.FAILED
                 )
                 goal.save()
-            elif goal.start_date < datetime.date.today():
+            elif goal.start_date <= datetime.date.today():
                 goal.status = GoalStatus.IN_PROGRESS
                 goal.save()
             else:
