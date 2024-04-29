@@ -2,6 +2,7 @@ from django.test import TestCase
 from ..models import GoalStatus
 from .factories import GoalFactory, Goal, GoalRecurranceType
 from transaction.tests.factories import TransactionFactory
+from category.tests.factories import CategoryFactory
 from django.core.management import call_command
 from io import StringIO
 import datetime
@@ -25,7 +26,8 @@ class TestUpdateStatus(TestCase):
             status=GoalStatus.IN_PROGRESS,
             expected_completion_date=datetime.date.today(),
         )
-        TransactionFactory(amount=goal.amount, date=goal.start_date, user=goal.user)
+        income_category = CategoryFactory(income=True, user=goal.user)
+        TransactionFactory(amount=goal.amount, date=goal.start_date, user=goal.user, category=income_category)
         with freeze_time(goal.expected_completion_date + datetime.timedelta(days=10)):
             call_command("update_status", stdout=StringIO())
         goal.refresh_from_db()
