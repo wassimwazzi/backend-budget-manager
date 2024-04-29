@@ -57,8 +57,6 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         Exchange a public token for an access token
         """
         public_token = request.data.get("public_token")
-        print("wawawaw")
-        print(public_token)
         user = request.user
         request = ItemPublicTokenExchangeRequest(public_token=public_token)
         response = client.item_public_token_exchange(request)
