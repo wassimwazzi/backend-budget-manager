@@ -15,8 +15,6 @@ class Command(BaseCommand):
         goals = Goal.objects.filter(
             recurring__in=[GoalRecurranceType.FIXED, GoalRecurranceType.INDEFINITE],
         )#.exclude(id__in=predecessor_goals)
-        print(predecessor_goals)
-        print(goals)
         for goal in goals:
             if goal.id in predecessor_goals:
                 continue
