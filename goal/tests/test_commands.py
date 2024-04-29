@@ -32,7 +32,7 @@ class TestUpdateStatus(TestCase):
         self.assertEqual(goal.status, GoalStatus.COMPLETED)
 
     def test_sets_status_to_in_progress(self):
-        goal = GoalFactory(status=GoalStatus.PENDING, start_date=datetime.date.today())
+        goal = GoalFactory(status=GoalStatus.PENDING, start_date=datetime.date.today() - datetime.timedelta(days=1))
         call_command("update_status", stdout=StringIO())
         goal.refresh_from_db()
         self.assertEqual(goal.status, GoalStatus.IN_PROGRESS)
