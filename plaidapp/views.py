@@ -14,6 +14,10 @@ from plaid.model.item_public_token_exchange_request import (
 )
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
+from plaid.model.item_get_request import ItemGetRequest
+from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
+from plaid.model.country_code import CountryCode
+
 from .utils import client
 
 
@@ -40,7 +44,7 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         client_user_id = str(user.id)
         # Create a link_token for the given user
         request = LinkTokenCreateRequest(
-            products=[Products("auth")],
+            products=[Products("transactions", "balance")],
             client_name="Budget Manager",
             country_codes=[CountryCode("CA"), CountryCode("US")],
             # redirect_uri=settings.PLAID_REDIRECT_URI,
@@ -66,9 +70,20 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         if PlaidItem.objects.filter(item_id=item_id, user=user).exists():
             item = PlaidItem.objects.get(item_id=item_id, user=user)
             return Response(PlaidItemSerializer(item).data)
+        institution_id = client.item_get(ItemGetRequest(access_token))["item"][
+            "institution_id"
+        ]
+        institution = client.institutions_get_by_id(
+            InstitutionsGetByIdRequest(
+                institution_id=institution_id,
+                country_codes=[CountryCode(code) for code in ["CA", "US"]],
+            )
+        )
         item = PlaidItem.objects.create(
             user=user,
             access_token=access_token,
             item_id=item_id,
+            institution_id=institution_id,
+            institution_name=institution["institution"]["name"],
         )
         return Response(PlaidItemSerializer(item).data)
