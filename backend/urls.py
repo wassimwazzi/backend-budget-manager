@@ -27,6 +27,7 @@ import transaction.views
 import budget.views
 import fileupload.views
 from users.views import SignUpView
+import plaidapp.views
 
 router = routers.DefaultRouter()
 router.register(r"categories", category.views.CategoryView, "categories")
@@ -35,6 +36,7 @@ router.register(r"goals", GoalView, "goals")
 router.register(r"transactions", transaction.views.TransactionView, "transactions")
 router.register(r"budgets", budget.views.BudgetView, "budgets")
 router.register(r"uploads", fileupload.views.FileUploadView, "uploads")
+router.register(r"plaid", plaidapp.views.PlaidItemView, "plaid")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

@@ -257,3 +257,10 @@ LOGGING = {
 # Celery settings
 CELERY_BROKER_URL = "redis://localhost:6379"
 CELERY_RESULT_BACKEND = "redis://localhost:6379"
+
+
+# Plaid settings
+PLAID_CLIENT_ID = os.environ.get("PLAID_CLIENT_ID")
+PLAID_SECRET = os.environ.get("PLAID_SECRET")
+PLAID_ENV = os.environ.get("PLAID_ENV")
+PLAID_REDIRECT_URI = os.environ.get("PLAID_REDIRECT_URI")

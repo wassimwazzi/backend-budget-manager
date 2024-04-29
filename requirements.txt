@@ -18,3 +18,5 @@ psycopg2-binary
 pyodbc
 mssql-django
 freezegun
+plaid-python
+python-dotenv
