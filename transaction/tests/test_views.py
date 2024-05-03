@@ -311,6 +311,65 @@ class TestSpendByCategory(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
+    def test_spend_by_category_avg(self):
+        Transaction.objects.all().delete()
+        category1 = CategoryFactory(user=self.user, income=False)
+        category2 = CategoryFactory(user=self.user, income=False)
+        TransactionFactory(
+            user=self.user, category=category1, amount=100, date=date(2021, 1, 1)
+        )
+        TransactionFactory(
+            user=self.user, category=category1, amount=200, date=date(2021, 1, 10)
+        )
+        TransactionFactory(
+            user=self.user, category=category2, amount=300, date=date(2021, 1, 15)
+        )
+        TransactionFactory(
+            user=self.user, category=category2, amount=100, date=date(2021, 2, 1)
+        )
+        TransactionFactory(
+            user=self.user, category=category2, amount=200, date=date(2022, 3, 9)
+        )
+
+        response = self.client.get(
+            self.url, {"avg": True, "sort": "date", "order": "desc"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["category"], category1.category)
+        self.assertEqual(response.data[0]["average"], 100)
+        self.assertEqual(response.data[1]["category"], category2.category)
+        self.assertEqual(response.data[1]["average"], 200)
+
+    def test_spend_by_category_avg_only_months_with_spend(self):
+        Transaction.objects.all().delete()
+        category1 = CategoryFactory(user=self.user, income=False)
+        category2 = CategoryFactory(user=self.user, income=False)
+        TransactionFactory(
+            user=self.user, category=category1, amount=100, date=date(2021, 1, 1)
+        )
+        TransactionFactory(
+            user=self.user, category=category1, amount=200, date=date(2021, 1, 10)
+        )
+        TransactionFactory(
+            user=self.user, category=category2, amount=300, date=date(2021, 1, 15)
+        )
+        TransactionFactory(
+            user=self.user, category=category2, amount=100, date=date(2021, 2, 1)
+        )
+        TransactionFactory(
+            user=self.user, category=category2, amount=200, date=date(2022, 3, 9)
+        )
+
+        response = self.client.get(
+            self.url, {"avg": True, "only_months_with_spend": True, "sort": "date", "order": "desc"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["category"], category1.category)
+        self.assertEqual(response.data[0]["average"], 300)
+        self.assertEqual(response.data[1]["category"], category2.category)
+        self.assertEqual(response.data[1]["average"], 200)
 
 class TestSpendVsIncomeByMonth(TestCase):
     def setUp(self):
