@@ -70,7 +70,8 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def spend_by_category(self, request):
         queryset = self.get_queryset()
-        monthly = request.query_params.get("monthly", False)
+        monthly = request.query_params.get("monthly", "False").lower() == "true"
+        avg = request.query_params.get("avg", "False").lower() == "true"
         if monthly:
             # get total spend by category by month
             spend_by_category = (
@@ -87,6 +88,52 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
                 }
                 for category in spend_by_category
             ]
+            return Response(response_data, status=200)
+        elif avg:
+            # get average spend by category
+            spend_by_category = (
+                queryset.filter(category__income=False)
+                .order_by("category__category")
+                .values("category__category")
+                .annotate(total=models.Sum("amount"))
+            )
+            only_months_with_spend = request.query_params.get("only_months_with_spend", "false").lower() == "true"
+            if only_months_with_spend:
+                distinct_months = (
+                    queryset.filter(category__income=False)
+                    .annotate(
+                        year_month=models.functions.Concat(
+                            models.functions.Extract("date", "year"),
+                            models.Value("-"),
+                            models.functions.Extract("date", "month"),
+                            output_field=models.CharField(),
+                        )
+                    )
+                    .order_by("year_month")
+                    .values("category__category", "year_month")
+                    .distinct()
+                )
+                response_data = [
+                    {
+                        "category": category["category__category"],
+                        "average": category["total"]
+                        / distinct_months.filter(
+                            category__category=category["category__category"]
+                        ).count(),
+                    }
+                    for category in spend_by_category
+                ]
+            else:
+                # transform dates to year-month format
+                months = queryset.filter(category__income=False).dates("date", "month")
+                response_data = [
+                    {
+                        "category": category["category__category"],
+                        "average": category["total"] / len(months),
+                    }
+                    for category in spend_by_category
+                ]
+
             return Response(response_data, status=200)
         # get total spend by category
         spend_by_category = (
@@ -246,6 +293,7 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         if balance["balance"] is None:
             balance["balance"] = 0
         return Response(balance, status=200)
+
 
 class ExportTransactionsViewSet(QuerysetMixin, APIView):
 
