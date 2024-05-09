@@ -70,10 +70,10 @@ class GoalSerializer(serializers.ModelSerializer):
 
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     start_date = serializers.DateField(
-        input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m"
+        input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m-%d"
     )
     expected_completion_date = serializers.DateField(
-        input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m"
+        input_formats=["%Y-%m", "%Y-%m-%d"], format="%Y-%m-%d"
     )
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1)
     contributions = GoalContributionSerializer(many=True, read_only=True)
