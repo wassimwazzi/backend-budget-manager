@@ -9,12 +9,16 @@ from rest_framework.decorators import action
 
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
+from plaid.model.item_get_request import ItemGetRequest
+from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 from plaid.model.item_public_token_exchange_request import (
     ItemPublicTokenExchangeRequest,
 )
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from .utils import client
+
+COUNTRY_CODES = [CountryCode("CA"), CountryCode("US")]
 
 
 class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
@@ -34,7 +38,6 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         """
         Create a link token for the user
         """
-        print(settings.PLAID_ENV)
         # Get the client_user_id by searching for the current user
         user = request.user
         client_user_id = str(user.id)
@@ -42,7 +45,7 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         request = LinkTokenCreateRequest(
             products=[Products("auth")],
             client_name="Budget Manager",
-            country_codes=[CountryCode("CA"), CountryCode("US")],
+            country_codes=COUNTRY_CODES,
             # redirect_uri=settings.PLAID_REDIRECT_URI,
             language="en",
             # webhook='https://webhook.example.com',
@@ -66,9 +69,20 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         if PlaidItem.objects.filter(item_id=item_id, user=user).exists():
             item = PlaidItem.objects.get(item_id=item_id, user=user)
             return Response(PlaidItemSerializer(item).data)
+        item_request = ItemGetRequest(access_token=access_token)
+        item_response = client.item_get(item_request)
+        institution_id = item_response["item"]["institution_id"]
+        institution_request = InstitutionsGetByIdRequest(
+            institution_id,
+            country_codes=COUNTRY_CODES,
+        )
+        institution_response = client.institutions_get_by_id(institution_request)
+        institution_name = institution_response["institution"]["name"]
         item = PlaidItem.objects.create(
             user=user,
             access_token=access_token,
             item_id=item_id,
+            institution_id=institution_id,
+            institution_name=institution_name,
         )
         return Response(PlaidItemSerializer(item).data)
