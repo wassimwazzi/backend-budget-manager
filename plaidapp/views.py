@@ -1,9 +1,8 @@
 from rest_framework import viewsets
-from rest_framework import serializers
 from django.conf import settings
 from rest_framework.response import Response
-from .serializers import PlaidItemSerializer
-from .models import PlaidItem
+from .serializers import PlaidItemSerializer, PlaidTransactionSerializer
+from .models import PlaidItem, PlaidTransaction, PlaidAccount, PlaidItemSync
 from queryset_mixin import QuerysetMixin
 from rest_framework.decorators import action
 
@@ -16,7 +15,11 @@ from plaid.model.item_public_token_exchange_request import (
 )
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
-from .utils import client
+from plaid.model.transactions_sync_request import TransactionsSyncRequest
+import plaid
+from .utils import client, pretty_print_response, format_error
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
 
 COUNTRY_CODES = [CountryCode("CA"), CountryCode("US")]
 
@@ -48,7 +51,7 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
             country_codes=COUNTRY_CODES,
             # redirect_uri=settings.PLAID_REDIRECT_URI,
             language="en",
-            webhook=settings.WEBHOOK_URL,
+            webhook=settings.PLAID_WEBHOOK_URL,
             user=LinkTokenCreateRequestUser(client_user_id=client_user_id),
         )
         response = client.link_token_create(request)
@@ -86,3 +89,74 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
             institution_name=institution_name,
         )
         return Response(PlaidItemSerializer(item).data)
+
+
+class PlaidTransactionView(QuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    serializer_class = PlaidTransactionSerializer
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the transactions
+        for the currently authenticated user.
+        """
+        user = self.request.user
+        queryset = PlaidTransaction.objects.filter(account__item__user=user)
+        return self.get_filtered_queryet(queryset)
+
+    @action(detail=False, methods=["post"])
+    def sync(self, request):
+        """
+        Sync transactions for an item
+        """
+
+        def get_or_create_account(**kwargs):
+            item = kwargs["item"]
+            account_id = kwargs["account_id"]
+
+        item_id = request.data.get("item_id")
+        user = request.user
+        item = PlaidItem.objects.get(item_id=item_id, user=user)
+        access_token = item.access_token
+        cursor, added, modified, removed, has_more = "", [], [], [], True
+        try:
+            while has_more:
+                request = TransactionsSyncRequest(
+                    access_token=access_token, cursor=cursor
+                )
+                response = client.transactions_sync(request).to_dict()
+                cursor = response["next_cursor"]
+                has_more = response["has_more"]
+                # # Add this page of results
+                added.extend(response["added"])
+                modified.extend(response["modified"])
+                removed.extend(response["removed"])
+                # has_more = response["has_more"]
+                # # Update cursor to the next cursor
+                # for t in response["transactions"]:
+                #     account = PlaidAccount.objects.get(account_id=t["account_id"])
+                #     transaction = PlaidTransaction.objects.create(
+                #         account=account,
+                #         transaction_id=t["transaction_id"],
+                #         account_owner=t["account_owner"],
+                #         amount=t["amount"],
+                #         iso_currency_code=t["iso_currency_code"],
+                #         unofficial_currency_code=t[
+                #             "unofficial_currency_code"
+                #         ],
+                #         category=t["category"],
+                #         category_id=t["category_id"],
+                #         date=t["date"],
+                #         location=t["location"],
+                #         name=t["name"],
+                #         payment_channel=t["payment_channel"],
+                #         pending=t["pending"],
+                #         pending_transaction_id=t[
+                #             "pending_transaction_id"
+                #         ],
+                #         transaction_code=t["transaction_code"],
+                #         transaction_type=t["transaction_type"],
+                #     )
+                pretty_print_response(response)
+            return Response({"added": added, "modified": modified, "removed": removed})
+        except plaid.ApiException as e:
+            return Response(format_error(e))

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PlaidItem
+from .models import PlaidItem, PlaidItemSync, PlaidAccount, PlaidTransaction, Location
 
 
 class PlaidItemSerializer(serializers.ModelSerializer):
@@ -11,5 +11,51 @@ class PlaidItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PlaidItem
-        fields = ("id", "item_id", "access_token", "user", "institution_id", "institution_name")
+        fields = "__all__"
         read_only_fields = ("id", "user")
+
+
+class PlaidItemSyncSerializer(serializers.ModelSerializer):
+    """
+    PlaidItemSync serializer
+    """
+
+    class Meta:
+        model = PlaidItemSync
+        fields = "__all__"
+        read_only_fields = "__all__"
+
+
+class PlaidAccountSerializer(serializers.ModelSerializer):
+    """
+    PlaidAccount serializer
+    """
+
+    class Meta:
+        model = PlaidAccount
+        fields = "__all__"
+        read_only_fields = "__all__"
+
+
+class PlaidLocationSerializer(serializers.ModelSerializer):
+    """
+    PlaidLocation serializer
+    """
+
+    class Meta:
+        model = Location
+        fields = "__all__"
+        read_only_fields = "__all__"
+
+
+class PlaidTransactionSerializer(serializers.ModelSerializer):
+    """
+    PlaidTransaction serializer
+    """
+
+    location = PlaidLocationSerializer()
+
+    class Meta:
+        model = PlaidTransaction
+        fields = "__all__"
+        read_only_fields = "__all__"
