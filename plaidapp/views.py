@@ -1,9 +1,9 @@
 from rest_framework import viewsets
-from rest_framework import serializers
 from django.conf import settings
 from rest_framework.response import Response
-from .serializers import PlaidItemSerializer
-from .models import PlaidItem
+import rest_framework.status
+from .serializers import PlaidItemSerializer, PlaidTransactionSerializer
+from .models import PlaidItem, PlaidTransaction
 from queryset_mixin import QuerysetMixin
 from rest_framework.decorators import action
 
@@ -17,6 +17,7 @@ from plaid.model.item_public_token_exchange_request import (
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from .utils import client
+from .sync_transactions import sync_transactions
 
 COUNTRY_CODES = [CountryCode("CA"), CountryCode("US")]
 
@@ -48,7 +49,7 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
             country_codes=COUNTRY_CODES,
             # redirect_uri=settings.PLAID_REDIRECT_URI,
             language="en",
-            webhook=settings.WEBHOOK_URL,
+            webhook=settings.PLAID_WEBHOOK_URL,
             user=LinkTokenCreateRequestUser(client_user_id=client_user_id),
         )
         response = client.link_token_create(request)
@@ -86,3 +87,27 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
             institution_name=institution_name,
         )
         return Response(PlaidItemSerializer(item).data)
+
+
+class PlaidTransactionView(QuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    serializer_class = PlaidTransactionSerializer
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the transactions
+        for the currently authenticated user.
+        """
+        user = self.request.user
+        queryset = PlaidTransaction.objects.filter(account__item__user=user)
+        return self.get_filtered_queryet(queryset)
+
+    @action(detail=False, methods=["post"])
+    def sync(self, request):
+        """
+        Sync transactions for an item
+        """
+        item_id = request.data.get("item_id")
+        user = request.user
+        if PlaidItem.objects.get(item_id=item_id).user != user:
+            return Response(status=rest_framework.status.HTTP_401_UNAUTHORIZED)
+        return Response(sync_transactions(item_id))

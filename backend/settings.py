@@ -36,10 +36,12 @@ IS_PROD_APP = "PROD_APP" in os.environ and not "CI" in os.environ
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not IS_PROD_APP
 
-if IS_PROD_APP:
-    ALLOWED_HOSTS = ["*"]
-else:
-    ALLOWED_HOSTS = ["0.0.0.0", "localhost", "127.0.0.1"]
+# if IS_PROD_APP:
+#     ALLOWED_HOSTS = ["*"]
+# else:
+#     ALLOWED_HOSTS = ["0.0.0.0", "localhost", "127.0.0.1", "*"]
+ALLOWED_HOSTS = ["*"]
+
 
 # Application definition
 DEFAULT_APPS = [
@@ -67,7 +69,7 @@ MY_APPS = [
     "fileupload",
     "goal",
     "transaction",
-    "plaiditem",
+    "plaidapp",
 ]
 
 INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + MY_APPS
@@ -267,4 +269,4 @@ PLAID_SECRET = os.environ.get("PLAID_SECRET")
 PLAID_ENV = os.environ.get("PLAID_ENV")
 PLAID_REDIRECT_URI = os.environ.get("PLAID_REDIRECT_URI")
 
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+PLAID_WEBHOOK_URL = os.environ.get("PLAID_WEBHOOK_URL")
