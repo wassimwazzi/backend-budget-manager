@@ -20,7 +20,7 @@ class PlaidItem(models.Model):
 
 
 class PlaidItemSync(models.Model):
-    item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
+    item = models.OneToOneField(PlaidItem, on_delete=models.CASCADE, primary_key=True)
     last_synced = models.DateTimeField()
     last_failed = models.DateTimeField(null=True, blank=True)
     failed_attempts = models.IntegerField(default=0)
@@ -50,7 +50,9 @@ class PlaidAccount(models.Model):
         max_digits=12, decimal_places=2, null=True, blank=True
     )
     limit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    max_lookback_days = models.IntegerField(null=True, blank=True) # Override the PlaidItem max_lookback_days
+    max_lookback_days = models.IntegerField(
+        null=True, blank=True
+    )  # Override the PlaidItem max_lookback_days
 
     def __str__(self):
         return f"{self.name} - {self.item}"
@@ -61,11 +63,13 @@ class PlaidAccount(models.Model):
 
 
 class Location(models.Model):
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=255)
-    region = models.CharField(max_length=50)
-    postal_code = models.CharField(max_length=10)
-    country = models.CharField(max_length=2)  # ISO 3166-1 alpha-2 country code
+    address = models.CharField(max_length=255, null=True, blank=True)
+    city = models.CharField(max_length=255, null=True, blank=True)
+    region = models.CharField(max_length=50, null=True, blank=True)
+    postal_code = models.CharField(max_length=10, null=True, blank=True)
+    country = models.CharField(
+        max_length=2, null=True, blank=True
+    )  # ISO 3166-1 alpha-2 country code
 
     def __str__(self):
         return f"{self.address} - {self.city}, {self.region} {self.postal_code} {self.country}"
@@ -84,13 +88,16 @@ class TransactionStatus(models.TextChoices):
 class PlaidTransaction(models.Model):
     item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
     account = models.ForeignKey(PlaidAccount, on_delete=models.CASCADE)
-    transaction_id = models.CharField(max_length=255)
-    category = models.CharField(max_length=255)
-    category_id = models.CharField(max_length=255)
+    plaid_transaction_id = models.CharField(max_length=255)
+    # foreign key is on the transaction model
+    # transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
+    category = models.CharField(max_length=255, null=True, blank=True)
+    category_id = models.CharField(max_length=255, null=True, blank=True)
     location = models.ForeignKey(
         Location, on_delete=models.SET_NULL, null=True, blank=True
     )
-    name = models.CharField(max_length=255)
+    # merchant name here, and name saved as description in transaction model
+    name = models.CharField(max_length=255, null=True, blank=True)
     pending = models.BooleanField()
     status = models.CharField(
         max_length=10,
