@@ -20,10 +20,12 @@ class PlaidItemSyncSerializer(serializers.ModelSerializer):
     PlaidItemSync serializer
     """
 
+    item = PlaidItemSerializer()
+
     class Meta:
         model = PlaidItemSync
         fields = "__all__"
-        read_only_fields = "__all__"
+        # read_only_fields = "__all__"
 
 
 class PlaidAccountSerializer(serializers.ModelSerializer):
@@ -34,7 +36,7 @@ class PlaidAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlaidAccount
         fields = "__all__"
-        read_only_fields = "__all__"
+        # read_only_fields = "__all__"
 
 
 class PlaidLocationSerializer(serializers.ModelSerializer):
@@ -45,7 +47,7 @@ class PlaidLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
         fields = "__all__"
-        read_only_fields = "__all__"
+        # read_only_fields = "__all__"
 
 
 class PlaidTransactionSerializer(serializers.ModelSerializer):
@@ -54,8 +56,10 @@ class PlaidTransactionSerializer(serializers.ModelSerializer):
     """
 
     location = PlaidLocationSerializer()
+    account = PlaidAccountSerializer()
+    item_sync = PlaidItemSyncSerializer()
 
     class Meta:
         model = PlaidTransaction
         fields = "__all__"
-        read_only_fields = "__all__"
+        # read_only_fields = "__all__"

@@ -15,6 +15,7 @@ from transaction.models import Transaction
 from currency.models import Currency
 from category.models import Category
 from inference.text_classifier import fuzzy_search
+from inference.inference import infer_categories
 
 
 def get_more_data(access_token, cursor):
@@ -22,7 +23,6 @@ def get_more_data(access_token, cursor):
     response = client.transactions_sync(request).to_dict()
     cursor = response["next_cursor"]
     has_more = response["has_more"]
-    # # Add this page of results
     added = response["added"]
     modified = response["modified"]
     removed = response["removed"]
@@ -30,17 +30,15 @@ def get_more_data(access_token, cursor):
     return cursor, has_more, accounts, added, modified, removed
 
 
-def save_cursor(item, cursor):
+def create_item_sync(item, cursor):
     """
-    Save the cursor for a PlaidItem.
-    Create the PlaidItemSync object if it doesn't exist.
+    Create the PlaidItemSync object.
     """
-    item_sync = PlaidItemSync.objects.get_or_create(
-        item=item, defaults={"last_synced": timezone.now()}
-    )[0]
-    item_sync.cursor = cursor
-    item_sync.last_synced = timezone.now()
+    item_sync = PlaidItemSync.objects.create(
+        item=item, last_synced=timezone.now(), cursor=cursor
+    )
     item_sync.save()
+    return item_sync
 
 
 def create_accounts(item, accounts):
@@ -79,10 +77,11 @@ def get_category(item, transaction):
     return categories.get(is_default=True)
 
 
-def add_transactions(item, transactions):
+def add_transactions(item_sync, transactions):
     """
     Create PlaidTransaction objects.
     """
+    item = item_sync.item
     for plaid_trans in transactions:
         account = PlaidAccount.objects.get(
             item=item, account_id=plaid_trans["account_id"]
@@ -96,7 +95,7 @@ def add_transactions(item, transactions):
         )[0]
         location.save()
         plaid_transaction = PlaidTransaction.objects.create(
-            item=item,
+            item_sync=item_sync,
             account=account,
             plaid_transaction_id=plaid_trans.get("transaction_id"),
             category_id=plaid_trans.get("category_id"),
@@ -119,6 +118,7 @@ def add_transactions(item, transactions):
             category=get_category(item, plaid_trans),
             plaid_transaction=plaid_transaction,
             user=item.user,
+            inferred_category=True,
         )
         transaction.save()
 
@@ -131,16 +131,30 @@ def sync_transactions(item_id):
     # TODO set max lookback days
     item = PlaidItem.objects.get(item_id=item_id)
     access_token = item.access_token
-    cursor, has_more = "", True
+    cursor, has_more = item.last_cursor or "", True
     try:
         with db_transaction.atomic():
             while has_more:
                 cursor, has_more, accounts, added, modified, removed = get_more_data(
                     access_token, cursor
                 )
+                if cursor == item.last_cursor:
+                    break
+                item_sync = create_item_sync(item, cursor)
                 create_accounts(item, accounts)
-                add_transactions(item, added)
-            save_cursor(item, cursor)
+                add_transactions(item_sync, added)
+                # TODO update transactions
+                # TODO remove transactions
+                # run inference on transactions with default category
+                infer_categories(
+                    Transaction.objects.filter(
+                        category__is_default=True,
+                        plaid_transaction__item_sync=item_sync,
+                    ),
+                    item.user,
+                )
+            item.last_cursor = cursor
+            item.save()
             return {"added": added, "modified": modified, "removed": removed}
     except plaid.ApiException as e:
         return format_error(e)

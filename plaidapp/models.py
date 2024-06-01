@@ -9,6 +9,7 @@ class PlaidItem(models.Model):
     institution_name = models.CharField(max_length=255)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     max_lookback_days = models.IntegerField(null=True, blank=True)
+    last_cursor = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return f"{self.institution_name} - {self.user}"
@@ -20,7 +21,7 @@ class PlaidItem(models.Model):
 
 
 class PlaidItemSync(models.Model):
-    item = models.OneToOneField(PlaidItem, on_delete=models.CASCADE, primary_key=True)
+    item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
     last_synced = models.DateTimeField()
     last_failed = models.DateTimeField(null=True, blank=True)
     failed_attempts = models.IntegerField(default=0)
@@ -32,6 +33,7 @@ class PlaidItemSync(models.Model):
     class Meta:
         verbose_name = "Plaid Item Sync"
         verbose_name_plural = "Plaid Item Syncs"
+        unique_together = ["item", "cursor"]
 
 
 class PlaidAccount(models.Model):
@@ -86,7 +88,8 @@ class TransactionStatus(models.TextChoices):
 
 
 class PlaidTransaction(models.Model):
-    item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
+    # item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
+    item_sync = models.ForeignKey(PlaidItemSync, on_delete=models.CASCADE)
     account = models.ForeignKey(PlaidAccount, on_delete=models.CASCADE)
     plaid_transaction_id = models.CharField(max_length=255)
     # foreign key is on the transaction model
