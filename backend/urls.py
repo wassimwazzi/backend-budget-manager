@@ -36,7 +36,7 @@ router.register(r"goals", GoalView, "goals")
 router.register(r"transactions", transaction.views.TransactionView, "transactions")
 router.register(r"budgets", budget.views.BudgetView, "budgets")
 router.register(r"uploads", fileupload.views.FileUploadView, "uploads")
-router.register(r"plaid", plaidapp.views.PlaidItemView, "plaid")
+router.register(r"plaiditem", plaidapp.views.PlaidItemView, "plaiditem")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

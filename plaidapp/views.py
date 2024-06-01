@@ -43,12 +43,12 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         client_user_id = str(user.id)
         # Create a link_token for the given user
         request = LinkTokenCreateRequest(
-            products=[Products("auth")],
+            products=[Products("auth"), Products("transactions")],
             client_name="Budget Manager",
             country_codes=COUNTRY_CODES,
             # redirect_uri=settings.PLAID_REDIRECT_URI,
             language="en",
-            # webhook='https://webhook.example.com',
+            webhook=settings.WEBHOOK_URL,
             user=LinkTokenCreateRequestUser(client_user_id=client_user_id),
         )
         response = client.link_token_create(request)

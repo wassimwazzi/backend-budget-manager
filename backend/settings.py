@@ -67,7 +67,7 @@ MY_APPS = [
     "fileupload",
     "goal",
     "transaction",
-    "plaidapp",
+    "plaiditem",
 ]
 
 INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + MY_APPS
@@ -266,3 +266,5 @@ PLAID_CLIENT_ID = os.environ.get("PLAID_CLIENT_ID")
 PLAID_SECRET = os.environ.get("PLAID_SECRET")
 PLAID_ENV = os.environ.get("PLAID_ENV")
 PLAID_REDIRECT_URI = os.environ.get("PLAID_REDIRECT_URI")
+
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
