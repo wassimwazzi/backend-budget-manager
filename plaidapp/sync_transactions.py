@@ -102,19 +102,19 @@ def add_transactions(item_sync, transactions):
             category=plaid_trans.get("category"),
             pending=plaid_trans.get("pending"),
             location=location,
-            name=plaid_trans.get("merchant_name"),
+            name=plaid_trans.get("name"),
             status=TransactionStatus.ADDED,
         )
         plaid_transaction.save()
 
         transaction = Transaction.objects.create(
-            code=plaid_trans["transaction_code"],
+            code=plaid_trans["name"],
             amount=abs(float(plaid_trans["amount"])),
             currency=Currency.objects.get_or_create(
                 code=plaid_trans["iso_currency_code"]
             )[0],
             date=plaid_trans["date"],
-            description=plaid_trans["name"],
+            description=plaid_trans["merchant_name"],
             category=get_category(item, plaid_trans),
             plaid_transaction=plaid_transaction,
             user=item.user,
