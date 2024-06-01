@@ -54,5 +54,5 @@ urlpatterns = [
         transaction.views.ExportTransactionsViewSet.as_view(),
         name="export_transactions",
     ),
-    path("plaid-webhook", handle_webhook, name="plaid-webhook"),
+    path("plaid-webhook/", handle_webhook, name="plaid-webhook"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,8 +1,8 @@
 from functools import wraps
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .webhook_handlers import webhook_handlers
+from .sync_transactions import sync_transactions
 
 webhook_handlers = {}
 
@@ -24,6 +24,9 @@ def register_webhook(event_type):
 def handle_sync_updates_available(payload):
     print("SYNC_UPDATES_AVAILABLE")
     print(payload)
+    item_id = payload["item_id"]
+    sync_transactions(item_id)
+    return JsonResponse({"status": "OK"})
 
 
 # handle plaid webhooks
@@ -43,7 +46,6 @@ def handle_webhook(request):
 
     # Extract event type (assuming it's in the payload, adjust as necessary)
     event_type = payload.get("webhook_code")
-
     # Process the webhook payload
     handler = webhook_handlers.get(event_type)
     if handler:
