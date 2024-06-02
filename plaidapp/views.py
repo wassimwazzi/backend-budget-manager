@@ -86,6 +86,8 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
             institution_id=institution_id,
             institution_name=institution_name,
         )
+        # call sync_transactions
+        sync_transactions(item_id)
         return Response(PlaidItemSerializer(item).data)
 
 
