@@ -108,3 +108,8 @@ class PlaidTransaction(models.Model):
         default=TransactionStatus.ADDED,
     )
     # description = models.TextField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Plaid Transaction"
+        verbose_name_plural = "Plaid Transactions"
+        unique_together = ["plaid_transaction_id", "account"]
