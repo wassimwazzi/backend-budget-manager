@@ -77,12 +77,26 @@ def get_category(item, transaction):
     return categories.get(is_default=True)
 
 
+def after_max_lookback_days(max_lookback_days, transaction):
+    """
+    Check if the transaction is older than the max lookback days.
+    """
+    if max_lookback_days is None:
+        return False
+    today = timezone.now().date()
+    transaction_date = transaction["date"]
+    return (today - transaction_date).days > max_lookback_days
+
+
 def add_transactions(item_sync, transactions):
     """
     Create PlaidTransaction objects.
     """
     item = item_sync.item
+    max_lookback_days = item.max_lookback_days
     for plaid_trans in transactions:
+        if after_max_lookback_days(max_lookback_days, plaid_trans):
+            continue
         account = PlaidAccount.objects.get(
             item=item, account_id=plaid_trans["account_id"]
         )
