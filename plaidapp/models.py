@@ -8,7 +8,7 @@ class PlaidItem(models.Model):
     institution_id = models.CharField(max_length=255)
     institution_name = models.CharField(max_length=255)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    max_lookback_days = models.IntegerField(null=True, blank=True)
+    max_lookback_date = models.DateField(null=True, blank=True)
     last_cursor = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
@@ -52,9 +52,7 @@ class PlaidAccount(models.Model):
         max_digits=12, decimal_places=2, null=True, blank=True
     )
     limit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    max_lookback_days = models.IntegerField(
-        null=True, blank=True
-    )  # Override the PlaidItem max_lookback_days
+    max_lookback_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} - {self.item}"
