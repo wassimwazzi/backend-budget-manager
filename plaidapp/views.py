@@ -61,7 +61,7 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
         Exchange a public token for an access token
         """
         public_token = request.data.get("public_token")
-        lookback_days = request.data.get("lookback_days")
+        lookback_date = request.data.get("lookback_date")
         user = request.user
         request = ItemPublicTokenExchangeRequest(public_token=public_token)
         response = client.item_public_token_exchange(request)
@@ -86,9 +86,8 @@ class PlaidItemView(QuerysetMixin, viewsets.ModelViewSet):
             item_id=item_id,
             institution_id=institution_id,
             institution_name=institution_name,
-            max_lookback_days=lookback_days,
+            max_lookback_date=lookback_date,
         )
-        # call sync_transactions
         sync_transactions(item_id)
         return Response(PlaidItemSerializer(item).data)
 
