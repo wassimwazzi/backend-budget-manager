@@ -13,14 +13,6 @@ from .factories import (
 )
 
 
-# def get_more_data_mock(
-#     cursor=None, has_more=False, accounts=None, added=None, modified=None, removed=None
-# ):
-#     with patch("plaidapp.sync_transactions.get_more_data") as mock:
-#         mock.return_value = cursor, has_more, accounts, added, modified, removed
-#         sync_transactions("test_item_id")
-
-
 # Decorator for mocking the get_more_data function
 def get_more_data_mock(
     cursor=None, has_more=False, accounts=None, added=None, modified=None, removed=None
@@ -71,7 +63,7 @@ MOCK_PLAID_ADDED_TRANSACTION = {
             "confidence_level": "VERY_HIGH",
         }
     ],
-    "date": "2023-09-24",
+    "date": datetime.datetime.strptime("2023-09-24", "%Y-%m-%d").date(),
     "datetime": "2023-09-24T11:01:01Z",
     "authorized_date": "2023-09-22",
     "authorized_datetime": "2023-09-22T10:34:50Z",
@@ -233,7 +225,7 @@ class TestSync(TestCase):
         self.assertEqual(
             transaction.currency.code, MOCK_PLAID_ADDED_TRANSACTION["iso_currency_code"]
         )
-        self.assertEqual(str(transaction.date), MOCK_PLAID_ADDED_TRANSACTION["date"])
+        self.assertEqual(transaction.date, MOCK_PLAID_ADDED_TRANSACTION["date"])
         self.assertEqual(
             transaction.description, MOCK_PLAID_ADDED_TRANSACTION["merchant_name"]
         )
@@ -360,9 +352,7 @@ class TestSync(TestCase):
         """
         Does not create transactions older than the max lookback date
         """
-        transaction_date = datetime.datetime.strptime(
-            MOCK_PLAID_ADDED_TRANSACTION["date"], "%Y-%m-%d"
-        ).date()
+        transaction_date = MOCK_PLAID_ADDED_TRANSACTION["date"]
         self.plaid_item.max_lookback_date = transaction_date + datetime.timedelta(
             days=1
         )

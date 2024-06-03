@@ -6,9 +6,8 @@ from .models import (
     Location,
     TransactionStatus,
 )
-from datetime import datetime
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
-from .utils import client, pretty_print_response, format_error
+from .utils import client, format_error
 import plaid
 from django.utils import timezone
 from django.db import transaction as db_transaction
@@ -69,7 +68,7 @@ def get_category(item, transaction):
         categories = Category.objects.filter(user=user, income=False)
     else:  # income
         categories = Category.objects.filter(user=user, income=True)
-    for plaid_category in transaction["category"]:
+    for plaid_category in transaction["category"] or []:
         category = fuzzy_search(
             plaid_category, categories.values_list("category", flat=True)
         )
@@ -94,9 +93,7 @@ def after_max_lookback_date(max_lookback_date, transaction):
     """
     if max_lookback_date is None:
         return True
-    return (
-        datetime.strptime(transaction["date"], "%Y-%m-%d").date() >= max_lookback_date
-    )
+    return transaction["date"] >= max_lookback_date
 
 
 def add_transactions(item_sync, transactions):
