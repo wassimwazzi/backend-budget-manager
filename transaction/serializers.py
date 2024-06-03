@@ -14,7 +14,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     plaid_transaction = PlaidTransactionSerializer(read_only=True)
-    file = FileUploadSerializer()
+    file = FileUploadSerializer(read_only=True)
 
     class Meta:
         model = Transaction
