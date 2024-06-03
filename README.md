@@ -91,4 +91,4 @@ celery -A backend worker -l info
 ## Ngrok
 
 To use webhooks setup [ngrok](https://dashboard.ngrok.com/get-started/setup/macos)
-Update the plaidItem with the new webhook https://plaid.com/docs/api/items/#itemwebhookupdate when in development using [postman](https://www.postman.com/spaceflight-cosmologist-42752282/workspace/budget-manager/request/31974229-8042885b-7f53-4b3e-828d-82c08c8a4232?tab=body)
+Update the plaidItem with the new webhook https://plaid.com/docs/api/items/#itemwebhookupdate when in development using [postman](https://www.postman.com/spaceflight-cosmologist-42752282/workspace/budget-manager/request/31974229-beabd0bb-0c43-49d8-889b-0ee7eecaf08a)
