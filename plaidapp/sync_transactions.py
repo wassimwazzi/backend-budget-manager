@@ -77,6 +77,16 @@ def get_category(item, transaction):
     return categories.get(is_default=True)
 
 
+def get_location(location):
+    return Location.objects.get_or_create(
+        city=location["city"],
+        region=location["region"],
+        postal_code=location["postal_code"],
+        country=location["country"],
+        address=location["address"],
+    )[0]
+
+
 def after_max_lookback_days(max_lookback_days, transaction):
     """
     Check if the transaction is older than the max lookback days.
@@ -100,13 +110,7 @@ def add_transactions(item_sync, transactions):
         account = PlaidAccount.objects.get(
             item=item, account_id=plaid_trans["account_id"]
         )
-        location = Location.objects.get_or_create(
-            city=plaid_trans.get("city"),
-            region=plaid_trans.get("region"),
-            postal_code=plaid_trans.get("postal_code"),
-            country=plaid_trans.get("country"),
-            address=plaid_trans.get("address"),
-        )[0]
+        location = get_location(plaid_trans["location"])
         location.save()
         plaid_transaction = PlaidTransaction.objects.create(
             item_sync=item_sync,
@@ -137,6 +141,56 @@ def add_transactions(item_sync, transactions):
         transaction.save()
 
 
+def remove_transactions(item_sync, transactions):
+    """
+    Remove PlaidTransaction objects.
+    """
+    ids = [t["transaction_id"] for t in transactions if t["transaction_id"] is not None]
+    Transaction.objects.filter(
+        plaid_transaction__plaid_transaction_id__in=ids,
+    ).delete()
+    PlaidTransaction.objects.filter(plaid_transaction_id__in=ids).update(
+        status=TransactionStatus.REMOVED, item_sync=item_sync
+    )
+
+
+def modify_transactions(item_sync, transactions):
+    """
+    Modify PlaidTransaction objects.
+    """
+    for plaid_trans_dict in transactions:
+        plaid_transaction = PlaidTransaction.objects.get(
+            plaid_transaction_id=plaid_trans_dict["transaction_id"]
+        )
+        account = PlaidAccount.objects.get(account_id=plaid_trans_dict["account_id"])
+        location = get_location(plaid_trans_dict["location"])
+        location.save()
+
+        plaid_transaction.account = account
+        plaid_transaction.item_sync = item_sync
+        plaid_transaction.location = location
+        plaid_transaction.category_id = plaid_trans_dict.get("category_id")
+        plaid_transaction.category = plaid_trans_dict.get("category")
+        plaid_transaction.pending = plaid_trans_dict.get("pending")
+        plaid_transaction.name = plaid_trans_dict.get("name")
+        plaid_transaction.status = TransactionStatus.MODIFIED
+        plaid_transaction.save()
+
+        transaction = Transaction.objects.get(plaid_transaction=plaid_transaction)
+        transaction.code = plaid_trans_dict["name"]
+        transaction.amount = abs(float(plaid_trans_dict["amount"]))
+        transaction.currency = Currency.objects.get_or_create(
+            code=plaid_trans_dict["iso_currency_code"]
+        )[0]
+        transaction.date = plaid_trans_dict["date"]
+        transaction.description = plaid_trans_dict["merchant_name"]
+        transaction.category = get_category(item_sync.item, plaid_trans_dict)
+        transaction.plaid_transaction = plaid_transaction
+        transaction.user = item_sync.item.user
+        transaction.inferred_category = True
+        transaction.save()
+
+
 def sync_transactions(item_id):
     """
     Sync transactions for an item
@@ -157,8 +211,8 @@ def sync_transactions(item_id):
                 item_sync = create_item_sync(item, cursor)
                 create_accounts(item, accounts)
                 add_transactions(item_sync, added)
-                # TODO update transactions
-                # TODO remove transactions
+                modify_transactions(item_sync, modified)
+                remove_transactions(item_sync, removed)
                 # run inference on transactions with default category
                 infer_categories(
                     Transaction.objects.filter(

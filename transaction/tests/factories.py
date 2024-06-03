@@ -2,6 +2,7 @@ import factory
 from users.user_factory import UserFactory
 from category.tests.factories import CategoryFactory
 from currency.tests.factories import CurrencyFactory
+from plaidapp.tests.factories import PlaidTransactionFactory
 from ..models import Transaction
 
 
@@ -15,6 +16,7 @@ class TransactionFactory(factory.django.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     category = factory.SubFactory(CategoryFactory, user=factory.SelfAttribute("..user"))
+    plaid_transaction = factory.SubFactory(PlaidTransactionFactory)
     amount = factory.Faker("pydecimal", left_digits=5, right_digits=2, positive=True)
     currency = factory.SubFactory(CurrencyFactory)
     date = factory.Faker("date_this_month")

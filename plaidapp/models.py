@@ -90,7 +90,9 @@ class TransactionStatus(models.TextChoices):
 class PlaidTransaction(models.Model):
     # item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
     item_sync = models.ForeignKey(PlaidItemSync, on_delete=models.CASCADE)
-    account = models.ForeignKey(PlaidAccount, on_delete=models.CASCADE)
+    account = models.ForeignKey(
+        PlaidAccount, on_delete=models.CASCADE, related_name="plaid_transactions"
+    )
     plaid_transaction_id = models.CharField(max_length=255)
     # foreign key is on the transaction model
     # transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
