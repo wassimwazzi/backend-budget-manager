@@ -31,7 +31,7 @@ class Transaction(models.Model):
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plaid_transaction = models.ForeignKey(
-        PlaidTransaction, on_delete=models.SET_NULL, null=True, blank=True
+        PlaidTransaction, on_delete=models.CASCADE, null=True, blank=True
     )
 
     def __str__(self):
