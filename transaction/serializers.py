@@ -1,7 +1,9 @@
 from rest_framework import serializers
 from .models import Transaction
 from category.serializers import CategorySerializer
+from plaidapp.serializers import PlaidTransactionSerializer
 from django.utils import timezone
+from fileupload.serializers import FileUploadSerializer
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -11,6 +13,8 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     category = CategorySerializer(read_only=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    plaid_transaction = PlaidTransactionSerializer(read_only=True)
+    file = FileUploadSerializer(read_only=True)
 
     class Meta:
         model = Transaction
@@ -25,6 +29,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             "inferred_category",
             "file",
             "user",
+            "plaid_transaction",
         )
         read_only_fields = ("id", "user", "inferred_category", "file")
 

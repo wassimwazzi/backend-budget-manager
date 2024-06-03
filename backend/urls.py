@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -26,6 +27,8 @@ from goal.views import GoalView
 import transaction.views
 import budget.views
 import fileupload.views
+import plaidapp.views
+from plaidapp.webhook_handlers import handle_webhook
 from users.views import SignUpView
 
 router = routers.DefaultRouter()
@@ -35,6 +38,10 @@ router.register(r"goals", GoalView, "goals")
 router.register(r"transactions", transaction.views.TransactionView, "transactions")
 router.register(r"budgets", budget.views.BudgetView, "budgets")
 router.register(r"uploads", fileupload.views.FileUploadView, "uploads")
+router.register(r"plaiditem", plaidapp.views.PlaidItemView, "plaiditem")
+router.register(
+    r"plaidtransactions", plaidapp.views.PlaidTransactionView, "plaidtransactions"
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -42,5 +49,10 @@ urlpatterns = [
     path("signup/", SignUpView.as_view(), name="signup"),
     path("api/", include(router.urls)),
     path("api/token/", obtain_auth_token, name="token_obtain_pair"),
-    path("api/exports/transactions/", transaction.views.ExportTransactionsViewSet.as_view(), name="export_transactions"),
+    path(
+        "api/exports/transactions/",
+        transaction.views.ExportTransactionsViewSet.as_view(),
+        name="export_transactions",
+    ),
+    path("plaid-webhook/", handle_webhook, name="plaid-webhook"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

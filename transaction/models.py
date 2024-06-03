@@ -1,11 +1,13 @@
 """
 Transactions model
 """
+
 from django.utils import timezone
 from django.db.utils import IntegrityError
 from django.core.exceptions import ValidationError
 from category.models import Category
 from currency.models import Currency
+from plaidapp.models import PlaidTransaction
 from fileupload.models import FileUpload
 from django.db import models
 from django.contrib.auth.models import User
@@ -28,6 +30,9 @@ class Transaction(models.Model):
         FileUpload, on_delete=models.CASCADE, null=True, blank=True
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    plaid_transaction = models.ForeignKey(
+        PlaidTransaction, on_delete=models.CASCADE, null=True, blank=True
+    )
 
     def __str__(self):
         return f"{self.date} - {self.code}: {self.amount} {self.currency}"
