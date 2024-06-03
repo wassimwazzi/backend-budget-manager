@@ -6,6 +6,7 @@ from .models import (
     Location,
     TransactionStatus,
 )
+from datetime import datetime
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from .utils import client, pretty_print_response, format_error
 import plaid
@@ -87,15 +88,15 @@ def get_location(location):
     )[0]
 
 
-def after_max_lookback_days(max_lookback_days, transaction):
+def after_max_lookback_date(max_lookback_date, transaction):
     """
     Check if the transaction is older than the max lookback days.
     """
-    if max_lookback_days is None:
-        return False
-    today = timezone.now().date()
-    transaction_date = transaction["date"]
-    return (today - transaction_date).days > max_lookback_days
+    if max_lookback_date is None:
+        return True
+    return (
+        datetime.strptime(transaction["date"], "%Y-%m-%d").date() >= max_lookback_date
+    )
 
 
 def add_transactions(item_sync, transactions):
@@ -103,9 +104,9 @@ def add_transactions(item_sync, transactions):
     Create PlaidTransaction objects.
     """
     item = item_sync.item
-    max_lookback_days = item.max_lookback_days
+    max_lookback_date = item.max_lookback_date
     for plaid_trans in transactions:
-        if after_max_lookback_days(max_lookback_days, plaid_trans):
+        if not after_max_lookback_date(max_lookback_date, plaid_trans):
             continue
         account = PlaidAccount.objects.get(
             item=item, account_id=plaid_trans["account_id"]

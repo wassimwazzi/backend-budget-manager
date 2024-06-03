@@ -23,7 +23,7 @@ class PlaidItemFactory(factory.django.DjangoModelFactory):
     institution_id = factory.Faker("uuid4")
     institution_name = factory.Faker("company")
     user = factory.SubFactory(UserFactory)
-    max_lookback_days = None
+    max_lookback_date = None
     last_cursor = None
 
 
@@ -65,7 +65,7 @@ class PlaidAccountFactory(factory.django.DjangoModelFactory):
         "pydecimal", left_digits=5, right_digits=2, positive=True
     )
     limit = factory.Faker("pydecimal", left_digits=5, right_digits=2, positive=True)
-    max_lookback_days = None
+    max_lookback_date = None
 
 
 class LocationFactory(factory.django.DjangoModelFactory):

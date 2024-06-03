@@ -1,3 +1,4 @@
+import datetime
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase
 from transaction.tests.factories import TransactionFactory
@@ -346,3 +347,26 @@ class TestSync(TestCase):
             plaid_transaction.category_id,
             MOCK_PLAID_MODIFIED_TRANSACTION["category_id"],
         )
+
+    @get_more_data_mock(
+        cursor=MOCK_NEXT_CURSOR,
+        has_more=False,
+        accounts=[MOCK_PLAID_ACCOUNT],
+        added=[MOCK_PLAID_ADDED_TRANSACTION],
+        modified=[],
+        removed=[],
+    )
+    def test_max_lookback_date(self):
+        """
+        Does not create transactions older than the max lookback date
+        """
+        transaction_date = datetime.datetime.strptime(
+            MOCK_PLAID_ADDED_TRANSACTION["date"], "%Y-%m-%d"
+        ).date()
+        self.plaid_item.max_lookback_date = transaction_date + datetime.timedelta(
+            days=1
+        )
+        self.plaid_item.save()
+        sync_transactions(self.plaid_item.item_id)
+        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertEqual(PlaidTransaction.objects.count(), 0)
