@@ -14,6 +14,12 @@ from django.utils import timezone
 from .tasks import infer_categories_task
 from queryset_mixin import QuerysetMixin
 
+FILTER_FIELDS_MAPPING = {
+    "category": "category__category",
+    "currency": "currency__code",
+    "file": "file__file"
+}
+
 
 class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
@@ -25,7 +31,7 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
         """
         user = self.request.user
         queryset = Transaction.objects.filter(user=user)
-        return self.get_filtered_queryet(queryset)
+        return self.get_filtered_queryet(queryset, FILTER_FIELDS_MAPPING)
 
     def validate_date(self):
         date = self.request.data.get("date")
@@ -97,7 +103,10 @@ class TransactionView(QuerysetMixin, viewsets.ModelViewSet):
                 .values("category__category")
                 .annotate(total=models.Sum("amount"))
             )
-            only_months_with_spend = request.query_params.get("only_months_with_spend", "false").lower() == "true"
+            only_months_with_spend = (
+                request.query_params.get("only_months_with_spend", "false").lower()
+                == "true"
+            )
             if only_months_with_spend:
                 distinct_months = (
                     queryset.filter(category__income=False)

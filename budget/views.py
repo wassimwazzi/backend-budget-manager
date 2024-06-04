@@ -9,6 +9,11 @@ import rest_framework.serializers as serializers
 from queryset_mixin import QuerysetMixin
 
 
+FILTER_FIELDS_MAPPING = {
+    "category": "category__category",
+}
+
+
 class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
 
@@ -20,14 +25,7 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
         user = self.request.user
         queryset = Budget.objects.filter(user=user)
 
-        def callback(field):
-            # if field == "category":
-            #     return "category__category"
-            if field == "start_date":
-                return "start_date__lte"
-            return f"{field}__icontains"
-
-        return self.get_filtered_queryet(queryset, callback)
+        return self.get_filtered_queryet(queryset, FILTER_FIELDS_MAPPING)
 
     def perform_create_or_update(self, serializer, is_create=False):
         user = self.request.user
@@ -42,9 +40,12 @@ class BudgetView(QuerysetMixin, viewsets.ModelViewSet):
                 raise serializers.ValidationError(
                     "Category not found or does not belong to the user"
                 ) from e
-            if is_create and Budget.objects.filter(
-                category=category, user=user, start_date=start_date
-            ).exists():
+            if (
+                is_create
+                and Budget.objects.filter(
+                    category=category, user=user, start_date=start_date
+                ).exists()
+            ):
                 raise serializers.ValidationError(
                     "Budget for this category and date already exists"
                 )
