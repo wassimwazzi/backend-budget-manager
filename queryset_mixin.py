@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.db import models
+import django.core.exceptions
 
 
 def find_related_field(model, field_name, visited_models=None, depth=0, link_name=""):
@@ -34,57 +35,142 @@ def find_related_field(model, field_name, visited_models=None, depth=0, link_nam
     return False, -1, ""
 
 
+class Filter:
+    """
+    A class to represent a filter
+    """
+
+    VALID_OPERATORS = [
+        "exact",
+        "iexact",
+        "contains",
+        "icontains",
+        "startswith",
+        "istartswith",
+        "endswith",
+        "iendswith",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+    ]
+
+    def __init__(self, filter_field, filter_value, filter_operator="exact"):
+        self.filter_field = filter_field
+        self.filter_value = filter_value
+        filter_operator = filter_operator.lower()
+        self.filter_operator = (
+            filter_operator if filter_operator in self.VALID_OPERATORS else "exact"
+        )
+
+    def as_dict(self):
+        """
+        Return the filter as a dictionary that can be passed to the filter method of a queryset
+        """
+        return {f"{self.filter_field}__{self.filter_operator}": self.filter_value}
+
+    def apply_filter(self, queryset):
+        """
+        Apply the filter to the queryset
+        """
+        return queryset.filter(**self.as_dict())
+
+
+class FilterList:
+    """
+    A class to represent a list of filters
+    """
+
+    def __init__(self, filter_fields, filter_values, filter_operators):
+        if len(filter_fields) != len(filter_values) or len(filter_fields) != len(
+            filter_operators
+        ):
+            raise serializers.ValidationError(
+                "filter_fields, filter_values, and filter_operators must have the same length"
+            )
+        self.filters = [
+            Filter(filter_field, filter_value, filter_operator)
+            for filter_field, filter_value, filter_operator in zip(
+                filter_fields, filter_values, filter_operators
+            )
+        ]
+
+    def apply_filters(self, queryset):
+        """
+        Apply filters to the queryset
+        """
+        filters = {}
+        for f in self.filters:
+            filters.update(f.as_dict())
+        return queryset.filter(**filters)
+
+    def apply_filters_or(self, queryset):
+        """
+        Apply filters to the queryset using OR
+        """
+        filters = models.Q()
+        for f in self.filters:
+            filters |= models.Q(**f.as_dict())
+        return queryset.filter(filters)
+
+
 class QuerysetMixin:
-    def get_filtered_queryet(self, queryset, filter_callback=None):
+    """
+    Mixin for filtering and sorting querysets
+    Pass a filter field mapping to map filter fields to related fields
+    TODO: Allow more complex queries with OR and AND operators like LDAP
+    """
+
+    def get_filter_list(self, filter_fieds_mapping=None):
+        """
+        Get filter list from query string parameters
+        Map filter fields to related fields if necessary
+        """
+        filter_fields = self.request.query_params.getlist("filter[]", [])
+        filter_values = self.request.query_params.getlist("filter_value[]", [])
+        filter_operators = self.request.query_params.getlist("filter_operator[]", [])
+
+        if filter_fieds_mapping:
+            filter_fields = [
+                filter_fieds_mapping.get(filter_field, filter_field)
+                for filter_field in filter_fields
+            ]
+        return FilterList(filter_fields, filter_values, filter_operators)
+
+    def get_sort_params(self, fields_mapping=None):
+        """
+        Get sort field and order from query string parameters
+        """
+        sort_field = self.request.query_params.get("sort", None)
+        sort_order = self.request.query_params.get("order", None)
+        if not sort_field or not sort_order:
+            return None, None
+        sort_order = sort_order.lower()
+        if sort_order not in ["asc", "desc"]:
+            raise serializers.ValidationError("Invalid sort order, must be asc or desc")
+        if fields_mapping:
+            sort_field = fields_mapping.get(sort_field, sort_field)
+        sort_order = "" if sort_order == "asc" else "-"
+        return sort_field, sort_order
+
+    def get_filtered_queryet(self, queryset, fields_mapping=None):
         """
         Filters and sort the queryset based on query string parameters
         """
-        model_class = queryset.model
-        filters = {}
-        # Get filter parameters from query string
-        filter_fields = self.request.query_params.getlist("filter[]", [])
-        filter_values = self.request.query_params.getlist("filter_value[]", [])
-
-        # Validate filter fields
-        valid_fields = [f.name for f in model_class._meta.get_fields()]
-        for filter_field in filter_fields:
-            if filter_field not in valid_fields:
-                raise serializers.ValidationError(
-                    f"Invalid filter field: {filter_field}"
-                )
-
-        # Apply filters
-        for filter_field, filter_value in zip(filter_fields, filter_values):
-            if (
-                filter_field == "category" and model_class.__name__ != "Category"
-            ):  # FIXME: front-end sends category instead of category__category. Fix is actually in front-end
-                filter_field = "category__category"
-            if filter_callback:
-                filter_field_query = filter_callback(filter_field)
-            else:
-                filter_field_query = f"{filter_field}__icontains"
-            filters[filter_field_query] = filter_value
-
-        queryset = queryset.filter(**filters)
+        filter_list: FilterList = self.get_filter_list(fields_mapping)
+        try:
+            queryset = filter_list.apply_filters(queryset)
+        except Exception as e:
+            raise serializers.ValidationError(e)
 
         # Sort by a single field
-        sort_field = self.request.query_params.get("sort", None)
-        sort_order = self.request.query_params.get("order", None)
+        sort_field, sort_order = self.get_sort_params(fields_mapping)
 
-        if sort_field and sort_order:
-            if sort_field not in valid_fields:
-                raise serializers.ValidationError("Invalid sort field")
-
-            if sort_field == "category" and model_class.__name__ != "Category":  # FIXME
-                sort_field = "category__category"
-
-            if sort_order not in ["asc", "desc"]:
-                raise serializers.ValidationError(
-                    "Invalid sort order, must be asc or desc"
-                )
-
-            queryset = queryset.order_by(
-                f"{'' if sort_order == 'asc' else '-'}{sort_field}", 'id' # prevent duplicates in pagination https://stackoverflow.com/questions/5044464/django-pagination-is-repeating-results
-            )
+        if sort_field:
+            # prevent duplicates in pagination https://stackoverflow.com/questions/5044464/django-pagination-is-repeating-results
+            try:
+                queryset = queryset.order_by(f"{sort_order}{sort_field}", "id")
+            except django.core.exceptions.FieldError as exc:
+                raise serializers.ValidationError("Invalid sort field") from exc
 
         return queryset

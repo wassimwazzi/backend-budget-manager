@@ -32,7 +32,12 @@ class TransactionAPITestCase(TestCase):
         transaction1 = TransactionFactory(user=self.user, code="123")
         transaction2 = TransactionFactory(user=self.user, code="456")
         response = self.client.get(
-            self.url, {"filter[]": "code", "filter_value[]": transaction2.code}
+            self.url,
+            {
+                "filter[]": "code",
+                "filter_value[]": transaction2.code,
+                "filter_operator[]": "iexact",
+            },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
@@ -45,7 +50,11 @@ class TransactionAPITestCase(TestCase):
         transaction2 = TransactionFactory(user=self.user)
         response = self.client.get(
             self.url,
-            {"filter[]": "category", "filter_value[]": transaction1.category.category},
+            {
+                "filter[]": "category",
+                "filter_value[]": transaction1.category.category,
+                "filter_operator[]": "iexact",
+            },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
@@ -268,6 +277,7 @@ class TestSpendByCategory(TestCase):
                 "monthly": True,
                 "filter[]": "category",
                 "filter_value[]": self.transactions[0].category.category,
+                "filter_operator[]": "iexact",
             },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -287,6 +297,7 @@ class TestSpendByCategory(TestCase):
                 "monthly": True,
                 "filter[]": "category",
                 "filter_value[]": "does not exist",
+                "filter_operator[]": "iexact",
             },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -362,7 +373,13 @@ class TestSpendByCategory(TestCase):
         )
 
         response = self.client.get(
-            self.url, {"avg": True, "only_months_with_spend": True, "sort": "date", "order": "desc"}
+            self.url,
+            {
+                "avg": True,
+                "only_months_with_spend": True,
+                "sort": "date",
+                "order": "desc",
+            },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
@@ -370,6 +387,7 @@ class TestSpendByCategory(TestCase):
         self.assertEqual(response.data[0]["average"], 300)
         self.assertEqual(response.data[1]["category"], category2.category)
         self.assertEqual(response.data[1]["average"], 200)
+
 
 class TestSpendVsIncomeByMonth(TestCase):
     def setUp(self):
