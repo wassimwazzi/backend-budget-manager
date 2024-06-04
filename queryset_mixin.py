@@ -166,7 +166,7 @@ class QuerysetMixin:
         # Sort by a single field
         sort_field, sort_order = self.get_sort_params(fields_mapping)
 
-        if sort_field and sort_order:
+        if sort_field:
             # prevent duplicates in pagination https://stackoverflow.com/questions/5044464/django-pagination-is-repeating-results
             try:
                 queryset = queryset.order_by(f"{sort_order}{sort_field}", "id")
