@@ -132,8 +132,12 @@ class TestGoalModel(TestCase):
             user=self.user,
         )
         # get last day of month
-        last_day_of_month = calendar.monthrange(self.next_year.year, self.next_year.month)[1]
-        self.assertEqual(goal.expected_completion_date, self.next_year.replace(day=last_day_of_month))
+        last_day_of_month = calendar.monthrange(
+            self.next_year.year, self.next_year.month
+        )[1]
+        self.assertEqual(
+            goal.expected_completion_date, self.next_year.replace(day=last_day_of_month)
+        )
 
     def test_goal_recurring_frequency_must_be_positive(self):
         """
@@ -147,7 +151,7 @@ class TestGoalModel(TestCase):
                 description="Test Goal",
                 user=self.user,
                 recurring=True,
-                reccuring_frequency=-1,
+                recurring_frequency=-1,
             )
 
     def test_goal_recurring_frequency_defaults_to_none(self):
@@ -161,7 +165,7 @@ class TestGoalModel(TestCase):
             description="Test Goal",
             user=self.user,
         )
-        self.assertIsNone(goal.reccuring_frequency)
+        self.assertIsNone(goal.recurring_frequency)
         self.assertEqual(goal.recurring, "NON_RECURRING")
 
     def test_actual_completion_date_is_set_to_today_when_status_is_completed(self):

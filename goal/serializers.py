@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Goal, GoalContribution, ContributionRange
+from .models import Goal, GoalContribution, ContributionRange, GoalRecurranceType
 
 
 class GoalSmallSerializer(serializers.ModelSerializer):
@@ -92,7 +92,7 @@ class GoalSerializer(serializers.ModelSerializer):
             "status",
             "start_date",
             "recurring",
-            "reccuring_frequency",
+            "recurring_frequency",
             "contributions",
             "user",
         )

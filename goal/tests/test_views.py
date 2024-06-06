@@ -73,7 +73,7 @@ class TestGoalView(TestCase):
             "status": "IN_PROGRESS",
             "start_date": "2020-02",
             "recurring": "FIXED",
-            # missing reccuring_frequency
+            # missing recurring_frequency
             "user": self.user.id,
         }
         response = self.client.post(self.url, goal_data, format="json")

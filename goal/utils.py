@@ -60,7 +60,7 @@ def create_goals(user=None):
             continue
         if (
             diff_month(datetime.date.today(), goal.expected_completion_date)
-            <= goal.reccuring_frequency - 1
+            <= goal.recurring_frequency - 1
         ):
             continue
         start_date = goal.expected_completion_date + datetime.timedelta(days=1)
@@ -75,7 +75,7 @@ def create_goals(user=None):
             user=goal.user,
             amount=goal.amount,
             recurring=goal.recurring,
-            reccuring_frequency=goal.reccuring_frequency,
+            recurring_frequency=goal.recurring_frequency,
             start_date=start_date,
             expected_completion_date=end_date,
             previous_goal=goal,

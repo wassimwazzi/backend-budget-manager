@@ -137,7 +137,7 @@ class TestOnUserLoginSignal(TestCase):
             goal = GoalFactory(
                 user=self.user,
                 recurring=GoalRecurranceType.FIXED,
-                reccuring_frequency=1,
+                recurring_frequency=1,
                 start_date=datetime.date(2021, 1, 1),
                 expected_completion_date=datetime.date(2021, 1, 31),
             )
@@ -161,7 +161,7 @@ class TestOnUserLoginSignal(TestCase):
             goal = GoalFactory(
                 user=self.user,
                 recurring=GoalRecurranceType.FIXED,
-                reccuring_frequency=2,
+                recurring_frequency=2,
                 start_date=datetime.date(2021, 1, 1),
                 expected_completion_date=datetime.date(2021, 1, 31),
             )
@@ -176,7 +176,7 @@ class TestOnUserLoginSignal(TestCase):
             goal = GoalFactory(
                 user=self.user,
                 recurring=GoalRecurranceType.FIXED,
-                reccuring_frequency=1,
+                recurring_frequency=1,
                 start_date=datetime.date(2021, 1, 1),
                 expected_completion_date=datetime.date(2021, 1, 31),
             )
@@ -185,7 +185,7 @@ class TestOnUserLoginSignal(TestCase):
             goal2 = GoalFactory(
                 user=self.user,
                 recurring=GoalRecurranceType.FIXED,
-                reccuring_frequency=1,
+                recurring_frequency=1,
                 start_date=datetime.date(2021, 2, 1),
                 expected_completion_date=datetime.date(2021, 2, 28),
                 previous_goal=goal,
