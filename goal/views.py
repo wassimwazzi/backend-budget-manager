@@ -10,6 +10,7 @@ from .models import Goal, ContributionRange, GoalStatus
 import datetime
 from queryset_mixin import QuerysetMixin
 import django.core.exceptions
+from .utils import create_goals, update_status
 
 
 class GoalView(QuerysetMixin, viewsets.ModelViewSet):
@@ -38,10 +39,12 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
             return Response(e, status=400)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=201, headers=headers)
-    
+
     def update(self, request, pk=None, partial=False):
         goal = self.get_object()
-        serializer = GoalSerializer(goal, data=request.data, context={"request": request})
+        serializer = GoalSerializer(
+            goal, data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         if serializer.validated_data["start_date"] < datetime.date.today():
             serializer.validated_data["status"] = GoalStatus.IN_PROGRESS
@@ -91,3 +94,15 @@ class GoalView(QuerysetMixin, viewsets.ModelViewSet):
         goal = self.get_object()
         goal.finalize(True)
         return Response(GoalSerializer(goal).data)
+
+    @action(detail=False, methods=["post"])
+    def update_goals(self, request):
+        user = self.request.user
+        updated = update_status(user)
+        created = create_goals(user)
+        return Response(
+            {
+                "updated": GoalSerializer(updated, many=True).data,
+                "created": GoalSerializer(created, many=True).data,
+            }
+        )
