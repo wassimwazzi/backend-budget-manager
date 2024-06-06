@@ -1,11 +1,12 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Goal, GoalContribution, ContributionRange
+from .utils import update_status, create_goals
 
 
 @receiver(post_save, sender=Goal)
-def on_goal_create(sender, instance, created, **kwargs):
+def on_goal_create(sender, instance, created, **_kwargs):
     """
     Create default contribution for goal
     """
@@ -32,7 +33,7 @@ def on_goal_create(sender, instance, created, **kwargs):
 
 
 @receiver(post_delete, sender=Goal)
-def on_goal_delete(sender, instance, **kwargs):
+def on_goal_delete(sender, instance, **_kwargs):
     """
     Delete all contributions and ranges associated with goal
     """
@@ -40,3 +41,14 @@ def on_goal_delete(sender, instance, **kwargs):
     contribution_ranges = ContributionRange.objects.filter(contributions__isnull=True)
     # delete all ranges
     contribution_ranges.delete()
+
+
+@receiver(user_logged_in)
+def on_user_login(sender, request, user, **_kwargs):
+    """
+    Update status of all goals
+    Create new goals for all recurring goals
+    TODO Use a daily cron job to update status and create goals
+    """
+    update_status(user)
+    create_goals(user)
