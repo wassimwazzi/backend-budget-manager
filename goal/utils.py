@@ -67,12 +67,10 @@ def create_goals(user=None):
         goal_number_of_months = diff_month(
             goal.expected_completion_date, goal.start_date
         )
-        print(goal_number_of_months)
         # goal_range = goal.expected_completion_date - goal.start_date
         # print(goal_range)
         # add the number of months to the start date
         end_date = add_months(start_date, goal_number_of_months)
-        print(end_date)
         new_goal = Goal.objects.create(
             user=goal.user,
             amount=goal.amount,
