@@ -1,6 +1,7 @@
 """
 Goal Model
 """
+
 from django.db import models, transaction
 from django.contrib.auth.models import User
 import django.core.exceptions
@@ -64,7 +65,7 @@ class Goal(models.Model):
         choices=GoalRecurranceType.choices,
         default=GoalRecurranceType.NON_RECURRING,
     )
-    reccuring_frequency = models.PositiveIntegerField(
+    recurring_frequency = models.PositiveIntegerField(
         null=True, blank=True
     )  # in months
     previous_goal = models.ForeignKey(
@@ -82,7 +83,10 @@ class Goal(models.Model):
         self.expected_completion_date = self.expected_completion_date.replace(
             day=end_completion_date
         )
-        if self.expected_completion_date < datetime.date.today() and not self.is_finalized:
+        if (
+            self.expected_completion_date < datetime.date.today()
+            and not self.is_finalized
+        ):
             raise django.core.exceptions.ValidationError(
                 "Completion date must be in the future."
             )
@@ -105,7 +109,7 @@ class Goal(models.Model):
         """
         if (
             self.recurring != GoalRecurranceType.NON_RECURRING
-            and not self.reccuring_frequency
+            and not self.recurring_frequency
         ):
             raise django.core.exceptions.ValidationError(
                 "Recurring goals must have a frequency."

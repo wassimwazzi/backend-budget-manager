@@ -31,7 +31,7 @@ class GoalFactory(factory.django.DjangoModelFactory):
     status = GoalStatus.PENDING
     start_date = None
     recurring = GoalRecurranceType.NON_RECURRING
-    reccuring_frequency = None
+    recurring_frequency = None
     previous_goal = None
     user = factory.SubFactory(UserFactory)
 

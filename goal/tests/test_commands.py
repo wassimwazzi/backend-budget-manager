@@ -27,7 +27,12 @@ class TestUpdateStatus(TestCase):
             expected_completion_date=datetime.date.today(),
         )
         income_category = CategoryFactory(income=True, user=goal.user)
-        TransactionFactory(amount=goal.amount, date=goal.start_date, user=goal.user, category=income_category)
+        TransactionFactory(
+            amount=goal.amount,
+            date=goal.start_date,
+            user=goal.user,
+            category=income_category,
+        )
         with freeze_time(goal.expected_completion_date + datetime.timedelta(days=10)):
             call_command("update_status", stdout=StringIO())
         goal.refresh_from_db()
@@ -44,7 +49,7 @@ class TestCreateGoals(TestCase):
     def test_creates_goals(self):
         goal = GoalFactory(
             recurring=GoalRecurranceType.FIXED,
-            reccuring_frequency=1,
+            recurring_frequency=1,
             expected_completion_date=datetime.date.today(),
             start_date=datetime.date.today() - datetime.timedelta(weeks=5),
         )
