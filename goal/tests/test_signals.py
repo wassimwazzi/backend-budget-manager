@@ -91,6 +91,36 @@ class TestOnGoalCreateSignal(TestCase):
         self.assertEqual(ContributionRange.objects.count(), 3)
 
 
+class TestOnGoalDeleteReAssingsContributions(TestCase):
+    def setUp(self):
+        self.user = UserFactory()
+        self.today = datetime.date.today()
+
+    def test_contributions_are_reassigned_to_other_goals(self):
+        goal1 = GoalFactory(
+            user=self.user,
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=31),
+        )
+        goal2 = GoalFactory(
+            user=self.user,
+            start_date=self.today,
+            expected_completion_date=self.today + datetime.timedelta(days=31),
+        )
+        goal1_contribution = GoalContribution.objects.get(goal=goal1)
+        goal2_contribution = GoalContribution.objects.get(goal=goal2)
+        goal1_contribution.percentage = 50
+        goal2_contribution.percentage = 50
+        goal1_contribution.save()
+        goal2_contribution.save()
+
+        goal1.delete()
+        goal2_contribution.refresh_from_db()
+        contribution_range = ContributionRange.objects.get()
+        self.assertEqual(contribution_range.total_percentage, 100)
+        self.assertEqual(goal2_contribution.percentage, 100)
+
+
 class TestOnGoalDeleteSignal(TestCase):
     def setUp(self):
         self.user = UserFactory()

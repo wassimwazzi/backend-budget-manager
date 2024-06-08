@@ -32,6 +32,15 @@ def on_goal_create(sender, instance, created, **_kwargs):
         )
 
 
+@receiver(post_delete, sender=GoalContribution)
+def on_goal_contribution_delete(sender, instance, **_kwargs):
+    """
+    Re-assign contributions to other goals
+    """
+    # find all ranges associated with contribution
+    instance.date_range.distribute_remaining_percentages()
+
+
 @receiver(post_delete, sender=Goal)
 def on_goal_delete(sender, instance, **_kwargs):
     """
