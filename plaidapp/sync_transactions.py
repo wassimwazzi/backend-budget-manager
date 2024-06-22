@@ -156,7 +156,12 @@ def modify_transactions(item_sync, transactions):
     """
     Modify PlaidTransaction objects.
     """
+    item = item_sync.item
+    max_lookback_date = item.max_lookback_date
     for plaid_trans_dict in transactions:
+        # Check max lookback date
+        if not after_max_lookback_date(max_lookback_date, plaid_trans_dict):
+            continue
         plaid_transaction = PlaidTransaction.objects.get(
             plaid_transaction_id=plaid_trans_dict["transaction_id"]
         )

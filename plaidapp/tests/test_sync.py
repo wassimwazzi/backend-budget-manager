@@ -133,7 +133,7 @@ MOCK_PLAID_MODIFIED_TRANSACTION = {
             "confidence_level": "VERY_HIGH",
         },
     ],
-    "date": "2023-09-28",
+    "date": datetime.datetime.strptime("2023-09-28", "%Y-%m-%d").date(),
     "datetime": "2023-09-28T15:10:09Z",
     "authorized_date": "2023-09-27",
     "authorized_datetime": "2023-09-27T08:01:58Z",
@@ -322,7 +322,7 @@ class TestSync(TestCase):
             transaction.currency.code,
             MOCK_PLAID_MODIFIED_TRANSACTION["iso_currency_code"],
         )
-        self.assertEqual(str(transaction.date), MOCK_PLAID_MODIFIED_TRANSACTION["date"])
+        self.assertEqual(transaction.date, MOCK_PLAID_MODIFIED_TRANSACTION["date"])
         self.assertEqual(
             transaction.description, MOCK_PLAID_MODIFIED_TRANSACTION["merchant_name"]
         )
@@ -360,3 +360,24 @@ class TestSync(TestCase):
         sync_transactions(self.plaid_item.item_id)
         self.assertEqual(Transaction.objects.count(), 0)
         self.assertEqual(PlaidTransaction.objects.count(), 0)
+
+    @get_more_data_mock(
+        cursor=MOCK_NEXT_CURSOR,
+        has_more=False,
+        accounts=[MOCK_PLAID_ACCOUNT],
+        added=[],
+        modified=[MOCK_PLAID_MODIFIED_TRANSACTION],
+        removed=[],
+    )
+    def test_modify_does_not_modify_before_lookback_date(self):
+        """
+        Does not modify transactions older than the max lookback date
+        """
+        transaction_date = MOCK_PLAID_MODIFIED_TRANSACTION["date"]
+        self.plaid_item.max_lookback_date = transaction_date + datetime.timedelta(
+            days=1
+        )
+        self.plaid_item.save()
+        # raises error if transaction is not found
+        sync_transactions(self.plaid_item.item_id)
+        self.assertEqual(Transaction.objects.count(), 0)
