@@ -162,9 +162,12 @@ def modify_transactions(item_sync, transactions):
         # Check max lookback date
         if not after_max_lookback_date(max_lookback_date, plaid_trans_dict):
             continue
-        plaid_transaction = PlaidTransaction.objects.get(
-            plaid_transaction_id=plaid_trans_dict["transaction_id"]
-        )
+        try:
+            plaid_transaction = PlaidTransaction.objects.get(
+                plaid_transaction_id=plaid_trans_dict["transaction_id"]
+            )
+        except PlaidTransaction.DoesNotExist:
+            continue
         account = PlaidAccount.objects.get(account_id=plaid_trans_dict["account_id"])
         location = get_location(plaid_trans_dict["location"])
         location.save()

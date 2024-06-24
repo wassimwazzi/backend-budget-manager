@@ -381,3 +381,21 @@ class TestSync(TestCase):
         # raises error if transaction is not found
         sync_transactions(self.plaid_item.item_id)
         self.assertEqual(Transaction.objects.count(), 0)
+
+
+    @get_more_data_mock(
+        cursor=MOCK_NEXT_CURSOR,
+        has_more=False,
+        accounts=[MOCK_PLAID_ACCOUNT],
+        added=[],
+        modified=[MOCK_PLAID_MODIFIED_TRANSACTION],
+        removed=[],
+    )
+    def test_when_modified_transaction_does_not_exist(self):
+        """
+        Does not modify transactions that do not exist
+        Should not raise error
+        """
+        sync_transactions(self.plaid_item.item_id)
+        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertEqual(PlaidTransaction.objects.count(), 0)
