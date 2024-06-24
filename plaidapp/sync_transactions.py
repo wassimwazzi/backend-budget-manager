@@ -166,7 +166,9 @@ def modify_transactions(item_sync, transactions):
             plaid_transaction = PlaidTransaction.objects.get(
                 plaid_transaction_id=plaid_trans_dict["transaction_id"]
             )
-        except PlaidTransaction.DoesNotExist:
+            transaction = Transaction.objects.get(plaid_transaction=plaid_transaction)
+
+        except (PlaidTransaction.DoesNotExist, Transaction.DoesNotExist):
             continue
         account = PlaidAccount.objects.get(account_id=plaid_trans_dict["account_id"])
         location = get_location(plaid_trans_dict["location"])
@@ -182,7 +184,6 @@ def modify_transactions(item_sync, transactions):
         plaid_transaction.status = TransactionStatus.MODIFIED
         plaid_transaction.save()
 
-        transaction = Transaction.objects.get(plaid_transaction=plaid_transaction)
         transaction.code = plaid_trans_dict["name"]
         transaction.amount = abs(float(plaid_trans_dict["amount"]))
         transaction.currency = Currency.objects.get_or_create(
