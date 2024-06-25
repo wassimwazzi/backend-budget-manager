@@ -16,6 +16,7 @@ from currency.models import Currency
 from category.models import Category
 from inference.text_classifier import fuzzy_search
 from inference.inference import infer_categories
+from threading import Thread
 
 
 def get_more_data(access_token, cursor):
@@ -233,3 +234,11 @@ def sync_transactions(item_id):
             return {"added": added, "modified": modified, "removed": removed}
     except plaid.ApiException as e:
         return format_error(e)
+
+def thread_sync_transactions(item_id):
+    """
+    Run sync_transactions in a thread
+    """
+    thread = Thread(target=sync_transactions, args=(item_id,))
+    thread.start()
+    return thread

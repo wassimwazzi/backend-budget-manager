@@ -17,7 +17,7 @@ from plaid.model.item_public_token_exchange_request import (
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from .utils import client
-from .sync_transactions import sync_transactions
+from .sync_transactions import thread_sync_transactions
 
 COUNTRY_CODES = [CountryCode("CA"), CountryCode("US")]
 
@@ -113,4 +113,5 @@ class PlaidTransactionView(QuerysetMixin, viewsets.ReadOnlyModelViewSet):
         user = request.user
         if PlaidItem.objects.get(item_id=item_id).user != user:
             return Response(status=rest_framework.status.HTTP_401_UNAUTHORIZED)
-        return Response(sync_transactions(item_id))
+        thread_sync_transactions(item_id)
+        return Response({"status": "OK"})

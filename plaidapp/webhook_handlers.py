@@ -2,7 +2,7 @@ from functools import wraps
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .sync_transactions import sync_transactions
+from .sync_transactions import thread_sync_transactions
 
 webhook_handlers = {}
 
@@ -25,7 +25,8 @@ def handle_sync_updates_available(payload):
     print("SYNC_UPDATES_AVAILABLE")
     print(payload)
     item_id = payload["item_id"]
-    sync_transactions(item_id)
+    # sync_transactions(item_id)
+    thread_sync_transactions(item_id)
     return JsonResponse({"status": "OK"})
 
 
