@@ -113,3 +113,19 @@ class PlaidTransaction(models.Model):
         verbose_name = "Plaid Transaction"
         verbose_name_plural = "Plaid Transactions"
         unique_together = ["plaid_transaction_id", "account"]
+
+    # def save(self, *args, **kwargs):
+    #     # Convert the list to a JSON string before storing
+    #     self.set_category(self.category)
+    #     super().save(*args, **kwargs)
+
+    # def set_category(self, value):
+    #     # Convert the list to a JSON string before storing
+    #     print("Setting category")
+    #     self.category = json.dumps(value)
+    #     print("Before :", value)
+    #     print("After :", self.category)
+
+    # def get_category(self):
+    #     # Convert the JSON string back to a list when retrieving
+    #     return json.loads(self.category) if self.category else []

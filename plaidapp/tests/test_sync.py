@@ -50,7 +50,7 @@ MOCK_PLAID_ADDED_TRANSACTION = {
     "amount": 72.1,
     "iso_currency_code": "USD",
     "unofficial_currency_code": None,
-    "category": ["Shops", "Supermarkets and Groceries"],
+    "category": ["Shops", "Clothing and Accessories", "Women's Store"],
     "category_id": "19046000",
     "check_number": None,
     "counterparties": [
@@ -381,7 +381,6 @@ class TestSync(TestCase):
         # raises error if transaction is not found
         sync_transactions(self.plaid_item.item_id)
         self.assertEqual(Transaction.objects.count(), 0)
-
 
     @get_more_data_mock(
         cursor=MOCK_NEXT_CURSOR,
