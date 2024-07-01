@@ -11,7 +11,7 @@ from .factories import (
     PlaidItemFactory,
     PlaidTransactionFactory,
 )
-
+import json
 
 # Decorator for mocking the get_more_data function
 def get_more_data_mock(
@@ -50,7 +50,7 @@ MOCK_PLAID_ADDED_TRANSACTION = {
     "amount": 72.1,
     "iso_currency_code": "USD",
     "unofficial_currency_code": None,
-    "category": ["Shops", "Supermarkets and Groceries"],
+    "category": ["Shops", "Clothing and Accessories", "Women's Store"],
     "category_id": "19046000",
     "check_number": None,
     "counterparties": [
@@ -240,7 +240,7 @@ class TestSync(TestCase):
             MOCK_PLAID_ADDED_TRANSACTION["transaction_id"],
         )
         self.assertEqual(
-            plaid_transaction.category, str(MOCK_PLAID_ADDED_TRANSACTION["category"])
+            plaid_transaction.category, json.dumps(MOCK_PLAID_ADDED_TRANSACTION["category"])
         )
         self.assertEqual(
             plaid_transaction.category_id, MOCK_PLAID_ADDED_TRANSACTION["category_id"]
@@ -333,7 +333,7 @@ class TestSync(TestCase):
 
         plaid_transaction.refresh_from_db()
         self.assertEqual(
-            plaid_transaction.category, str(MOCK_PLAID_MODIFIED_TRANSACTION["category"])
+            plaid_transaction.category, json.dumps(MOCK_PLAID_MODIFIED_TRANSACTION["category"])
         )
         self.assertEqual(
             plaid_transaction.category_id,
@@ -381,7 +381,6 @@ class TestSync(TestCase):
         # raises error if transaction is not found
         sync_transactions(self.plaid_item.item_id)
         self.assertEqual(Transaction.objects.count(), 0)
-
 
     @get_more_data_mock(
         cursor=MOCK_NEXT_CURSOR,

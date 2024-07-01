@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import PlaidItem, PlaidItemSync, PlaidAccount, PlaidTransaction, Location
+import json
 
 
 class PlaidItemSerializer(serializers.ModelSerializer):
@@ -50,6 +51,22 @@ class PlaidLocationSerializer(serializers.ModelSerializer):
         # read_only_fields = "__all__"
 
 
+class CategoryField(serializers.Field):
+    """
+    Custom field to handle category list.
+    Since the category field is a list of strings, we need to serialize it as a JSON string.
+    """
+
+    def to_representation(self, value):
+        try:
+            return json.loads(value) if value else []
+        except json.JSONDecodeError:
+            return value
+
+    def to_internal_value(self, data):
+        return json.dumps(data)
+
+
 class PlaidTransactionSerializer(serializers.ModelSerializer):
     """
     PlaidTransaction serializer
@@ -58,6 +75,7 @@ class PlaidTransactionSerializer(serializers.ModelSerializer):
     location = PlaidLocationSerializer()
     account = PlaidAccountSerializer()
     item_sync = PlaidItemSyncSerializer()
+    category = CategoryField()
 
     class Meta:
         model = PlaidTransaction

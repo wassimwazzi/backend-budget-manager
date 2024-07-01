@@ -17,6 +17,7 @@ from category.models import Category
 from inference.text_classifier import fuzzy_search
 from inference.inference import infer_categories
 from threading import Thread
+import json
 
 
 def get_more_data(access_token, cursor):
@@ -116,7 +117,7 @@ def add_transactions(item_sync, transactions):
             account=account,
             plaid_transaction_id=plaid_trans.get("transaction_id"),
             category_id=plaid_trans.get("category_id"),
-            category=plaid_trans.get("category"),
+            category=json.dumps(plaid_trans.get("category")),
             pending=plaid_trans.get("pending"),
             location=location,
             name=plaid_trans.get("name"),
@@ -179,7 +180,7 @@ def modify_transactions(item_sync, transactions):
         plaid_transaction.item_sync = item_sync
         plaid_transaction.location = location
         plaid_transaction.category_id = plaid_trans_dict.get("category_id")
-        plaid_transaction.category = plaid_trans_dict.get("category")
+        plaid_transaction.category = json.dumps(plaid_trans_dict.get("category"))
         plaid_transaction.pending = plaid_trans_dict.get("pending")
         plaid_transaction.name = plaid_trans_dict.get("name")
         plaid_transaction.status = TransactionStatus.MODIFIED
@@ -234,6 +235,7 @@ def sync_transactions(item_id):
             return {"added": added, "modified": modified, "removed": removed}
     except plaid.ApiException as e:
         return format_error(e)
+
 
 def thread_sync_transactions(item_id):
     """
