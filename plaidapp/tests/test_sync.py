@@ -11,7 +11,7 @@ from .factories import (
     PlaidItemFactory,
     PlaidTransactionFactory,
 )
-
+import json
 
 # Decorator for mocking the get_more_data function
 def get_more_data_mock(
@@ -240,7 +240,7 @@ class TestSync(TestCase):
             MOCK_PLAID_ADDED_TRANSACTION["transaction_id"],
         )
         self.assertEqual(
-            plaid_transaction.category, str(MOCK_PLAID_ADDED_TRANSACTION["category"])
+            plaid_transaction.category, json.dumps(MOCK_PLAID_ADDED_TRANSACTION["category"])
         )
         self.assertEqual(
             plaid_transaction.category_id, MOCK_PLAID_ADDED_TRANSACTION["category_id"]
@@ -333,7 +333,7 @@ class TestSync(TestCase):
 
         plaid_transaction.refresh_from_db()
         self.assertEqual(
-            plaid_transaction.category, str(MOCK_PLAID_MODIFIED_TRANSACTION["category"])
+            plaid_transaction.category, json.dumps(MOCK_PLAID_MODIFIED_TRANSACTION["category"])
         )
         self.assertEqual(
             plaid_transaction.category_id,
