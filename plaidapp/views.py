@@ -17,7 +17,7 @@ from plaid.model.item_public_token_exchange_request import (
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from .utils import client
-from .sync_transactions import thread_sync_transactions
+from .sync_transactions import thread_sync_transactions, sync_transactions
 
 COUNTRY_CODES = [CountryCode("CA"), CountryCode("US")]
 
