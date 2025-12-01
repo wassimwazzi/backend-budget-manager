@@ -260,3 +260,64 @@ class BudgetSummaryTestCase(TestCase):
             },
         ]
         self.assertListEqual(budget_summary, expected)
+
+    def test_budget_with_end_date_gte_month_end_date(self):
+        """
+        Test budget summary includes budgets with end_date >= month end_date
+        """
+        BudgetFactory(
+            category=self.category1,
+            start_date=self.month,
+            end_date=self.month.replace(day=31),
+            user=self.user,
+            amount=100,
+        )
+        budget_summary = Budget.get_budget_by_category(self.month, self.user)
+        self.assertEqual(len(budget_summary), 1)
+        expected = [
+            {
+                "category": self.category1.category,
+                "budget": 100,
+                "actual": 0,
+                "remaining": 100,
+            },
+        ]
+        self.assertListEqual(budget_summary, expected)
+
+    def test_budget_with_end_date_is_null(self):
+        """
+        Test budget summary includes budgets with end_date is null
+        """
+        BudgetFactory(
+            category=self.category1,
+            start_date=self.month,
+            end_date=None,
+            user=self.user,
+            amount=100,
+        )
+        budget_summary = Budget.get_budget_by_category(self.month, self.user)
+        self.assertEqual(len(budget_summary), 1)
+        expected = [
+            {
+                "category": self.category1.category,
+                "budget": 100,
+                "actual": 0,
+                "remaining": 100,
+            },
+        ]
+        self.assertListEqual(budget_summary, expected)
+
+    def test_budget_with_end_date_lt_month_end_date(self):
+        """
+        Test budget summary does not include budgets with end_date < month end_date
+        """
+        
+        BudgetFactory(
+            category=self.category1,
+            start_date=self.month,
+            end_date=self.month.replace(day=31),
+            user=self.user,
+            amount=100,
+        )
+        budget_summary = Budget.get_budget_by_category(self.month, self.user)
+        self.assertEqual(len(budget_summary), 0)

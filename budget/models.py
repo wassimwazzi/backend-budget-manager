@@ -1,6 +1,7 @@
 """
 Budget models
 """
+
 from category.models import Category
 from currency.models import Currency
 from transaction.models import Transaction
@@ -22,6 +23,7 @@ class Budget(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.ForeignKey(Currency, on_delete=models.CASCADE)
     start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
@@ -56,6 +58,7 @@ class Budget(models.Model):
         # If no budget exists for the month and category, but a transaction exists, set budget to 0
         budgets = (
             Budget.objects.filter(
+                models.Q(end_date__gte=start_date) | models.Q(end_date__isnull=True),
                 start_date__lte=start_date,
                 category__income=False,
                 user=user,
